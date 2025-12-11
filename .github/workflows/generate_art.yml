@@ -1,0 +1,43 @@
+name: Generate Repo Art
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  generate-art:
+    if: contains(github.event.head_commit.message, '[GEN_ART]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install requests pillow # Ensure these are installed for saving logic
+
+      - name: Run Repo Artist
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+        run: python scripts/repo_artist.py
+
+      - name: Commit and Push Art
+        run: |
+          git config --global user.name "Repo-Artist Bot"
+          git config --global user.email "bot@repo-artist.com"
+          git add assets/architecture_diagram.png
+          git commit -m "[GEN_ART] Auto-generated architecture visualization" || echo "No changes to commit"
+          git push
