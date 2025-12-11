@@ -8,24 +8,26 @@ import time
 
 # --- CONFIGURATION ---
 HF_MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0"
-HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL_ID}"
+# UPDATED URL HERE:
+HF_API_URL = f"https://router.huggingface.co/models/{HF_MODEL_ID}"
 
-# NEW STYLE: Clean, Glassmorphism, Single Centered Icon
+# סגנון נקי, זכוכית, ללא טקסט, רק ויזואליה חזקה
 STYLE_TEMPLATE = """
-A single high-quality 3D glassmorphism icon floating in the center. 
-Dark background, soft studio lighting, neon rim light. 
+A single high-quality 3D glassmorphism object floating in the center. 
+Dark background, soft studio lighting, neon rim light, octane render. 
 Frosted glass texture, semi-transparent, glowing edges. 
-Minimalist, modern UI design, dribbble style, 8k render. 
+Minimalist, modern UI design, 8k render. 
+NO text, NO letters. 
 Subject:
 """
 
 def get_code_context(root_dir="."):
-    """Mock context to force specific outcomes based on repo name/content."""
+    """Mock context extraction."""
     file_list = []
     for root, dirs, files in os.walk(root_dir):
         if '.git' in root: continue
         for file in files:
-            if file.endswith(('.py', '.js', '.ts', '.md')):
+            if file.endswith(('.py', '.js', '.ts', '.md', '.yml')):
                 file_list.append(file)
     return ", ".join(file_list[:50])
 
@@ -33,24 +35,24 @@ def analyze_and_prompt(code_context):
     print("🧠 Choosing the Hero Object with Gemini...")
     
     if not os.getenv("GEMINI_API_KEY"):
-        return "A glowing glass cube with a python logo inside."
+        return "A glowing glass cube."
 
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    # Using 2.5-flash-lite as requested in previous turn
     model = genai.GenerativeModel('gemini-2.5-flash-lite')
     
     instruction = f"""
     Analyze these filenames to understand the project type.
-    Choose ONE single physical object to represent it as a 3D Icon.
+    Choose ONE single physical object to represent it as a 3D Glass Icon.
     
-    - If Automation/Bot -> "A futuristic glass gear" or "A cute robot head"
-    - If AI/Brain -> "A glowing crystal brain"
-    - If Web/Code -> "A glass isometric bracket symbol"
-    - If Security -> "A glass shield with a lock"
+    - If Automation/Bot -> "A futuristic glass gear system"
+    - If AI/Brain -> "A glowing crystal brain structure"
+    - If Web/Code -> "A glass isometric code bracket symbol"
+    - If Security -> "A glass shield with a neon lock"
+    - If CLI -> "A floating glass command terminal prompt"
     
     Filenames: {code_context}
     
-    Output ONLY the object description (e.g., "A glowing glass gear").
+    Output ONLY the object description.
     """
     
     try:
@@ -65,7 +67,6 @@ def analyze_and_prompt(code_context):
 def generate_image_hf(visual_description):
     print(f"🎨 Generating Icon with SDXL...")
     
-    # Combine template + object
     final_prompt = f"{STYLE_TEMPLATE} {visual_description}, centered composition."
     print(f"📝 Prompt: {final_prompt}")
     
@@ -74,9 +75,9 @@ def generate_image_hf(visual_description):
     payload = {
         "inputs": final_prompt,
         "parameters": {
-            "negative_prompt": "text, words, letters, complex, messy, blurry, low quality, deformed, multiple objects, cropped",
-            "num_inference_steps": 25,
-            "guidance_scale": 7.0
+            "negative_prompt": "text, words, letters, signature, watermark, complex, messy, blurry, low quality, deformed, multiple objects, cropped",
+            "num_inference_steps": 28,
+            "guidance_scale": 7.5
         }
     }
 
@@ -98,7 +99,7 @@ def generate_image_hf(visual_description):
         print(f"❌ Error: {e}")
         return None
 
-def save_image(image_bytes, output_path="assets/architecture_diagram.png"):
+def save_image(image_bytes, output_path="assets/banner.png"):
     if not image_bytes:
         return
     print(f"💾 Saving to {output_path}...")
