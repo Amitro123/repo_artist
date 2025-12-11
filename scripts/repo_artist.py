@@ -7,7 +7,7 @@ from pathlib import Path
 import time
 
 # --- CONFIGURATION ---
-HF_MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0"
+HF_MODEL_ID = "stabilityai/stable-diffusion-2-1"
 # UPDATED URL HERE:
 HF_API_URL = f"https://router.huggingface.co/models/{HF_MODEL_ID}"
 
