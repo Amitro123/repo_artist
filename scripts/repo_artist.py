@@ -56,7 +56,7 @@ def analyze_and_prompt(code_context):
         return "A futuristic glowing crystal structure in a dark sci-fi environment."
 
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash-lite')
     
     # This prompt makes Gemini an Art Director
     instruction = f"""
