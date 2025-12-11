@@ -8,7 +8,8 @@ on:
 
 jobs:
   generate-art:
-    if: contains(github.event.head_commit.message, '[GEN_ART]')
+    # Only run on commits with [GEN_ART] in the message (or manual dispatch)
+    if: contains(github.event.head_commit.message, '[GEN_ART]') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,24 +21,22 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
-      - name: Run Repo Artist
+      - name: Generate architecture hero image
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: python scripts/repo_artist.py
+        run: python scripts/repo_artist.py --mode image
 
       - name: Commit and Push Art
         run: |
           git config --global user.name "Repo-Artist Bot"
           git config --global user.email "bot@repo-artist.com"
-          git add assets/architecture_diagram.png
-          git commit -m "[GEN_ART] Auto-generated architecture visualization" || echo "No changes to commit"
+          git add assets/architecture_diagram.png README.md
+          git diff --staged --quiet || git commit -m "🎨 Auto-generated architecture hero image"
           git push

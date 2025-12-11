@@ -1,51 +1,62 @@
+"""Tests for Repo-Artist pipeline."""
 import unittest
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock
 import sys
 import os
 
-# Add scripts directory to path
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'scripts'))
-
 import repo_artist
+
 
 class TestRepoArtist(unittest.TestCase):
 
-    @patch('repo_artist.genai')
-    @patch('repo_artist.replicate')
-    @patch('repo_artist.save_image')
-    @patch('os.walk')
-    @patch('builtins.open', new_callable=mock_open, read_data="print('hello')")
-    def test_full_flow(self, mock_file, mock_walk, mock_save, mock_replicate, mock_genai):
-        # Mock Harvesting
-        mock_walk.return_value = [
-            ('.', [], ['test.py'])
-        ]
+    def test_get_code_context_returns_string(self):
+        """Test that get_code_context returns a string."""
+        with patch('os.walk') as mock_walk:
+            mock_walk.return_value = [('.', [], ['test.py'])]
+            result = repo_artist.get_code_context('.')
+            self.assertIsInstance(result, str)
+
+    def test_build_hero_prompt_with_valid_architecture(self):
+        """Test build_hero_prompt with valid input includes correct format."""
+        arch = {
+            "system_summary": "A test system for testing",
+            "components": [
+                {"id": "a", "label": "Component A", "type": "api", "role": "Handles requests"},
+                {"id": "b", "label": "Component B", "type": "database", "role": "Stores data"}
+            ],
+            "connections": [
+                {"from": "a", "to": "b", "label": "queries data"}
+            ]
+        }
+        result = repo_artist.build_hero_prompt(arch)
         
-        # Mock Gemini
-        mock_model = MagicMock()
-        mock_genai.GenerativeModel.return_value = mock_model
-        mock_response = MagicMock()
-        mock_response.text = "A flowing data stream."
-        mock_model.generate_content.return_value = mock_response
-        
-        # Mock Replicate
-        mock_replicate.run.return_value = ["http://example.com/image.png"]
-        
-        # Set fake API keys
-        repo_artist.GEMINI_API_KEY = "fake_key"
-        repo_artist.REPLICATE_API_TOKEN = "fake_token"
-        
-        # Run
-        repo_artist.main()
-        
-        # Verify Gemini called
-        mock_model.generate_content.assert_called()
-        
-        # Verify Replicate called
-        mock_replicate.run.assert_called()
-        
-        # Verify Save called
-        mock_save.assert_called_with("http://example.com/image.png")
+        # Check for exact style template elements
+        self.assertIn("System overview:", result)
+        self.assertIn("Components as floating platforms:", result)
+        self.assertIn("Data flows between platforms:", result)
+        self.assertIn("Visual style requirements:", result)
+        self.assertIn('Platform 1: Label "Component A"', result)
+        self.assertIn('Arrow from "Component A" to "Component B"', result)
+
+    def test_build_hero_prompt_handles_none(self):
+        """Test build_hero_prompt with None."""
+        result = repo_artist.build_hero_prompt(None)
+        self.assertIsNone(result)
+
+    def test_architecture_to_mermaid(self):
+        """Test mermaid code generation."""
+        arch = {
+            "components": [{"id": "a", "label": "A", "type": "api", "role": ""}],
+            "connections": []
+        }
+        result = repo_artist.architecture_to_mermaid(arch)
+        self.assertIn("graph LR", result)
+
+    def test_generate_hero_image_exists(self):
+        """Test that generate_hero_image function exists."""
+        self.assertTrue(callable(repo_artist.generate_hero_image))
+
 
 if __name__ == '__main__':
     unittest.main()
