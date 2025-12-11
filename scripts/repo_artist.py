@@ -13,8 +13,7 @@ load_dotenv()
 
 # --- CONFIGURATION ---
 # Using SDXL Base 1.0 (Free Inference API) - known for great 3D composition
-HF_MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0" 
-HF_API_URL = f"https://router.huggingface.co/models/{HF_MODEL_ID}"
+HF_MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0"
 
 # The exact premium 3D prompt structure
 STYLE_TEMPLATE = """
@@ -84,40 +83,36 @@ def analyze_and_prompt(code_context):
         return "A futuristic central server block connected to multiple glowing data nodes."
 
 def generate_image_hf(visual_description):
-    """Generates image using Hugging Face Free Inference API."""
+    """Generates image using Hugging Face InferenceClient."""
+    from huggingface_hub import InferenceClient
+    
     print(f"🎨 Generating image with SDXL via Hugging Face...")
     
     # Combine the style template with the specific flow
     final_prompt = f"{STYLE_TEMPLATE} Scene description: {visual_description}"
     
-    headers = {"Authorization": f"Bearer {os.getenv('HF_TOKEN')}"}
+    if not os.getenv('HF_TOKEN'):
+        print("❌ Error: Missing HF_TOKEN")
+        return None
     
-    payload = {
-        "inputs": final_prompt,
-        "parameters": {
-            "negative_prompt": "text, watermark, low quality, blurry, 2d, flat, drawing, sketch, human, face, deformed",
-            "num_inference_steps": 30, # Slightly higher for better quality
-            "guidance_scale": 8.0     # Stronger adherence to the prompt
-        }
-    }
-
     try:
-        response = requests.post(HF_API_URL, headers=headers, json=payload)
+        client = InferenceClient(token=os.getenv('HF_TOKEN'))
         
-        # Handle Model Loading state (common in free tier)
-        if response.status_code == 503:
-            print("⏳ Model is loading (Cold Start), waiting 20s...")
-            time.sleep(20)
-            response = requests.post(HF_API_URL, headers=headers, json=payload)
-
-        if response.status_code != 200:
-            print(f"❌ Error from HF: {response.text}")
-            return None
-            
-        return response.content # Returns image bytes
+        image = client.text_to_image(
+            prompt=final_prompt,
+            model=HF_MODEL_ID,
+            negative_prompt="text, watermark, low quality, blurry, 2d, flat, drawing, sketch, human, face, deformed",
+            num_inference_steps=30,
+            guidance_scale=8.0
+        )
+        
+        # Convert PIL Image to bytes
+        img_bytes = io.BytesIO()
+        image.save(img_bytes, format='PNG')
+        return img_bytes.getvalue()
         
     except Exception as e:
-        print(f"❌ Connection Error: {e}")
+        print(f"❌ Error from HF: {e}")
         return None
 
 def save_image(image_bytes, output_path="assets/architecture_banner.png"):
