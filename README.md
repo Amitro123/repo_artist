@@ -4,7 +4,7 @@
 
 Repo-Artist analyzes your codebase using **Google Gemini 1.5 Flash** to understand your architecture, and then uses **Stable Diffusion XL** (via Hugging Face) to generate a high-end, Sci-Fi isometric "Hero Image" for your project.
 
-![Example Art](assets/architecture_diagram.png)
+![Repo-Artist Architecture](assets/architecture_diagram.png)
 
 ## Features
 
