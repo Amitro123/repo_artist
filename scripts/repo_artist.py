@@ -59,29 +59,30 @@ def analyze_and_prompt(code_context):
     model = genai.GenerativeModel('gemini-2.5-flash-lite')
     
     instruction = f"""
-    You are analyzing a codebase to create a DETAILED visual description for a 3D isometric architecture diagram generator.
+    You are an Art Director for a Sci-Fi Tech Visualization. 
+    Your goal: Create a prompt for Stable Diffusion XL that visualizes this SPECIFIC codebase as a 3D architecture.
     
-    IMPORTANT RULES:
-    1. Identify ALL major components (scripts, workflows, APIs, databases, services)
-    2. Describe EXACTLY what each component does based on the code
-    3. Use SPECIFIC spatial layout (left, right, center, above, below)
-    4. Mention the ACTUAL file/folder names you see in the code
-    5. Create a FLOWING narrative showing how data moves through the system
+    CRITICAL: Do NOT write a long narrative. Write a PUNCHY, VISUAL list of elements.
     
-    VISUAL STYLE GUIDE:
-    - Input sources (files, APIs, user input) = Electric CYAN/BLUE glass blocks or transparent cubes
-    - Processing logic (Python scripts, functions) = Deep PURPLE/MAGENTA glowing cores or spheres  
-    - Data storage (databases, files) = Cylindrical PURPLE storage units with holographic rings
-    - External services (APIs, AI models) = Glowing brain-shaped or crystalline structures
-    - Workflows/automation = Floating control panels with neon circuit patterns
+    Identify 3-4 MAJOR components from the code:
+    1. The Trigger/Input (e.g., User, GitHub Action, CLI)
+    2. The Logic Core (e.g., Python Script, Controller)
+    3. The AI Brain (e.g., Gemini, LLM)
+    4. The Output (e.g., Image, File, Database)
     
-    EXAMPLE GOOD OUTPUT:
-    "On the LEFT, a cyan glass cube labeled 'GitHub Actions Workflow' sends a blue data conduit to the CENTER where a large purple glowing sphere labeled 'scripts/repo_artist.py' processes code. From this sphere, THREE purple pipes branch out: one connects UPWARD to a floating cyan '.env configuration' panel, another connects RIGHT to a glowing brain-shaped crystal labeled 'Google Gemini AI' with electrical pulses, and the third connects DOWNWARD to a massive pink hexagonal crystal labeled 'Hugging Face SDXL' emitting light rays. Finally, a thin blue conduit returns from SDXL back to wrap around 'assets/architecture_diagram.png' - a small glowing cube at the BOTTOM-RIGHT."
+    OUTPUT FORMAT:
+    "Isometric 3D render. In the center, a [VSUAL_1] labeled '[NAME_1]'. Connected by [COLOR] data pipes to a [VISUAL_2] on the left labeled '[NAME_2]'. On the right, a [VISUAL_3] labeled '[NAME_3]' glows with [COLOR] energy. Background is a dark data void."
+    
+    VISUAL GLOSSARY (Use these):
+    - Python Script = "Crystalline Cube"
+    - API/AI = "Glowing Neural Orb"
+    - Database/File = "Holographic Glass Block"
+    - User/Trigger = "Neon Control Interface"
     
     NOW ANALYZE THIS CODEBASE:
     {code_context}
     
-    OUTPUT: Write a SINGLE detailed paragraph (5-8 sentences) describing the 3D scene with spatial positions and data flow. Be SPECIFIC about filenames and services you detect.
+    OUTPUT ONLY THE PROMPT. Keep it under 75 words.
     """
     
     try:
