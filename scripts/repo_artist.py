@@ -16,14 +16,13 @@ load_dotenv()
 HF_MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0"
 
 # The exact premium 3D prompt structure
+# The exact premium 3D prompt structure
 STYLE_TEMPLATE = """
-A hyper-realistic, premium 3D technical architecture visualization in an isometric view. 
-The aesthetic is dark mode sci-fi, glowing with neon energy. 
-The color palette features a distinct transition from electric cyan and neon blue (for inputs) to deep neon purple and magenta (for processing).
-The environment is a reflective, futuristic circuit board platform floating in a dark data nebula. 
-Key elements are complex, glowing 3D structures encased in glass and energy fields, casting volumetric light. 
-Connections are thick, translucent, volumetric data conduits (pipes) with visible pulses of light. 
-High-end CGI, intense bloom, subsurface scattering, realistic reflections, octane render, 8k.
+A professional 3D isometric architecture infographic. 
+Style: High-end tech illustration, 3D icon set, Blender Eevee render, glossy glass and metal materials.
+Lighting: Bright studio lighting, soft shadows, vibrant neon accents (cyan and purple).
+Layout: Clean, distinct separated components connected by glowing data pipes on a dark tech grid.
+Features: Floating holographic text labels, clear containment boxes, UI elements, 4k, octane render.
 """
 
 def get_code_context(root_dir="."):
@@ -59,30 +58,33 @@ def analyze_and_prompt(code_context):
     model = genai.GenerativeModel('gemini-2.5-flash-lite')
     
     instruction = f"""
-    You are an Art Director for a Sci-Fi Tech Visualization. 
-    Your goal: Create a prompt for Stable Diffusion XL that visualizes this SPECIFIC codebase as a 3D architecture.
+    You are an Art Director for a Technical Infographic.
+    Your goal: Visualize this codebase as a CLEAN, LABELED 3D ISOMETRIC DIAGRAM.
     
-    CRITICAL: Do NOT write a long narrative. Write a PUNCHY, VISUAL list of elements.
+    CRITICAL: The user wants a "Professional Architecture" look, NOT abstract art.
+    - Components must be distinct "3D Icons" (Cubes, Cylinders, Spheres).
+    - Connect them with clear pipes.
+    - Emphasize LABELS as "Floating Holographic UI Panels" above objects.
     
-    Identify 3-4 MAJOR components from the code:
-    1. The Trigger/Input (e.g., User, GitHub Action, CLI)
-    2. The Logic Core (e.g., Python Script, Controller)
-    3. The AI Brain (e.g., Gemini, LLM)
-    4. The Output (e.g., Image, File, Database)
+    Identify 3-4 MAJOR components:
+    1. Input/Trigger
+    2. Logic Core
+    3. AI/External Service
+    4. Output/Result
     
-    OUTPUT FORMAT:
-    "Isometric 3D render. In the center, a [VSUAL_1] labeled '[NAME_1]'. Connected by [COLOR] data pipes to a [VISUAL_2] on the left labeled '[NAME_2]'. On the right, a [VISUAL_3] labeled '[NAME_3]' glows with [COLOR] energy. Background is a dark data void."
+    OUTPUT FORMAT (Strict):
+    "Isometric infographic. Center: A glossy [SHAPE] w/label '[NAME]'. Left: A [SHAPE] w/label '[NAME]'. Right: A [SHAPE] w/label '[NAME]'. Connected by [COLOR] tubes. Floating UI text labels."
     
-    VISUAL GLOSSARY (Use these):
-    - Python Script = "Crystalline Cube"
-    - API/AI = "Glowing Neural Orb"
-    - Database/File = "Holographic Glass Block"
-    - User/Trigger = "Neon Control Interface"
+    VISUAL GLOSSARY:
+    - Script/Logic = "Glossy Purple Cube"
+    - Database = "Glass Cylinder"
+    - API/AI = "Glowing Blue Sphere"
+    - Config/Env = "Flat Holographic Panel"
     
     NOW ANALYZE THIS CODEBASE:
     {code_context}
     
-    OUTPUT ONLY THE PROMPT. Keep it under 75 words.
+    OUTPUT ONLY THE PROMPT. Keep it under 60 words.
     """
     
     try:
