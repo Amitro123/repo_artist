@@ -14,7 +14,7 @@ load_dotenv()
 # --- CONFIGURATION ---
 # Using SDXL Base 1.0 (Free Inference API) - known for great 3D composition
 HF_MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0" 
-HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL_ID}"
+HF_API_URL = f"https://router.huggingface.co/models/{HF_MODEL_ID}"
 
 # The exact premium 3D prompt structure
 STYLE_TEMPLATE = """
