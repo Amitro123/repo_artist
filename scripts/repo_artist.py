@@ -16,13 +16,12 @@ load_dotenv()
 HF_MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0"
 
 # The exact premium 3D prompt structure
-# The exact premium 3D prompt structure
+# New Style: Clean, Minimalist, Clear
 STYLE_TEMPLATE = """
-A professional 3D isometric architecture infographic. 
-Style: High-end tech illustration, 3D icon set, Blender Eevee render, glossy glass and metal materials.
-Lighting: Bright studio lighting, soft shadows, vibrant neon accents (cyan and purple).
-Layout: Clean, distinct separated components connected by glowing data pipes on a dark tech grid.
-Features: Floating holographic text labels, clear containment boxes, UI elements, 4k, octane render.
+Isometric tech diagram, minimalist vector art style, dark mode.
+Glowing neon blue and purple data pipelines connecting nodes.
+Clean geometric shapes, professional cloud architecture visualization.
+High quality, 4k, schematic design.
 """
 
 def get_code_context(root_dir="."):
@@ -47,52 +46,21 @@ def get_code_context(root_dir="."):
     return "\n".join(context[:10]) 
 
 def analyze_and_prompt(code_context):
-    """Uses Gemini to create the specific scene description."""
-    print("🧠 Analyzing architecture with Gemini...")
+    """
+    Simplified flow: specific 3-element architecture.
+    """
+    print("🧠 Defining architecture flow...")
     
-    if not os.getenv("GEMINI_API_KEY"):
-        print("⚠️ GEMINI_API_KEY missing, using generic prompt.")
-        return "A central glowing cubic hub receives blue data pipes and sends purple data pipes to a glowing brain-shaped AI model."
-
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel('gemini-2.5-flash-lite')
-    
-    instruction = f"""
-    You are an Art Director for a Technical Infographic.
-    Your goal: Visualize this codebase as a CLEAN, LABELED 3D ISOMETRIC DIAGRAM.
-    
-    CRITICAL: The user wants a "Professional Architecture" look, NOT abstract art.
-    - Components must be distinct "3D Icons" (Cubes, Cylinders, Spheres).
-    - Connect them with clear pipes.
-    - Emphasize LABELS as "Floating Holographic UI Panels" above objects.
-    
-    Identify 3-4 MAJOR components:
-    1. Input/Trigger
-    2. Logic Core
-    3. AI/External Service
-    4. Output/Result
-    
-    OUTPUT FORMAT (Strict):
-    "Isometric infographic. Center: A glossy [SHAPE] w/label '[NAME]'. Left: A [SHAPE] w/label '[NAME]'. Right: A [SHAPE] w/label '[NAME]'. Connected by [COLOR] tubes. Floating UI text labels."
-    
-    VISUAL GLOSSARY:
-    - Script/Logic = "Glossy Purple Cube"
-    - Database = "Glass Cylinder"
-    - API/AI = "Glowing Blue Sphere"
-    - Config/Env = "Flat Holographic Panel"
-    
-    NOW ANALYZE THIS CODEBASE:
-    {code_context}
-    
-    OUTPUT ONLY THE PROMPT. Keep it under 60 words.
+    # Specific description for Python/AI projects
+    specific_flow = """
+    Three main isometric distinct elements connected by glowing tubes:
+    1. Left: A floating browser window icon (Client).
+    2. Center: A glowing cubic server block (Python Backend).
+    3. Right: A crystal brain structure (AI).
+    Data flowing from left to right.
     """
     
-    try:
-        response = model.generate_content(instruction)
-        return response.text.strip()
-    except Exception as e:
-        print(f"⚠️ Gemini Error: {e}")
-        return "A futuristic central server block connected to multiple glowing data nodes."
+    return specific_flow
 
 def generate_image_hf(visual_description):
     """Generates image using Hugging Face InferenceClient."""
