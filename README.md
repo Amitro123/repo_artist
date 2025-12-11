@@ -2,7 +2,7 @@
 
 **Automated Architecture Art Generator for GitHub Repositories.**
 
-Repo-Artist analyzes your codebase using **Google Gemini 1.5 Flash** to understand your architecture, and then uses **Flux.1 Schnell** (via Replicate) to generate a high-end, Sci-Fi isometric "Hero Image" for your project.
+Repo-Artist analyzes your codebase using **Google Gemini 1.5 Flash** to understand your architecture, and then uses **Stable Diffusion XL** (via Hugging Face) to generate a high-end, Sci-Fi isometric "Hero Image" for your project.
 
 ![Example Art](assets/architecture_diagram.png)
 
@@ -10,7 +10,7 @@ Repo-Artist analyzes your codebase using **Google Gemini 1.5 Flash** to understa
 
 - **Smart Detection**: Only generates new art when significant changes are detected (> 3 files or > 50 lines changed).
 - **AI Analysis**: Reads your code structure (Python, JS, Go, etc.) to understand what you are building.
-- **High-Quality Art**: Uses a custom-engineered prompt for "Dark Mode Sci-Fi" aesthetics.
+- **High-Quality Art**: Uses a custom-engineered prompt for "Hyper-Realistic 3D Isometric" aesthetics with volumetric lighting and glass structures.
 - **Automated**: Runs on `git push` via a local wrapper or GitHub Actions.
 
 ## Installation
@@ -27,7 +27,7 @@ Repo-Artist analyzes your codebase using **Google Gemini 1.5 Flash** to understa
       ```
     - Fill in your keys in `.env`:
       - `GEMINI_API_KEY`: Get from [Google AI Studio](https://aistudio.google.com/app/apikey).
-      - `REPLICATE_API_TOKEN`: Get from [Replicate](https://replicate.com/account/api-tokens).
+      - `HF_TOKEN`: Get from [Hugging Face](https://huggingface.co/settings/tokens).
 
 ## Usage
 
