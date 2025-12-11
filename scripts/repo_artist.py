@@ -115,7 +115,7 @@ def generate_image_hf(visual_description):
         print(f"❌ Error from HF: {e}")
         return None
 
-def save_image(image_bytes, output_path="assets/architecture_banner.png"):
+def save_image(image_bytes, output_path="assets/architecture_diagram.png"):
     if not image_bytes:
         return
 
