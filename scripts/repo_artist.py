@@ -16,12 +16,12 @@ load_dotenv()
 HF_MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0"
 
 # The exact premium 3D prompt structure
-# New Style: Clean, Minimalist, Clear
+# Hero Object Style: Single, High-Impact 3D Element
 STYLE_TEMPLATE = """
-Isometric tech diagram, minimalist vector art style, dark mode.
-Glowing neon blue and purple data pipelines connecting nodes.
-Clean geometric shapes, professional cloud architecture visualization.
-High quality, 4k, schematic design.
+Hyper-realistic 3D render, dark mode, neon tech aesthetic, isometric view.
+Volumetric lighting, octane render, 8k, unreal engine 5, glowing glass and metal textures.
+Background is a dark circuit board pattern.
+Subject:
 """
 
 def get_code_context(root_dir="."):
@@ -47,20 +47,46 @@ def get_code_context(root_dir="."):
 
 def analyze_and_prompt(code_context):
     """
-    Simplified flow: specific 3-element architecture.
+    Uses Gemini to dynamically decide the visual subject based on the code.
+    Instead of a complex flow, it chooses one powerful 'Hero Object'.
     """
-    print("🧠 Defining architecture flow...")
+    print("🧠 Analyzing code DNA with Gemini...")
     
-    # Specific description for Python/AI projects
-    specific_flow = """
-    Three main isometric distinct elements connected by glowing tubes:
-    1. Left: A floating browser window icon (Client).
-    2. Center: A glowing cubic server block (Python Backend).
-    3. Right: A crystal brain structure (AI).
-    Data flowing from left to right.
+    if not os.getenv("GEMINI_API_KEY"):
+        return "A futuristic glowing crystal structure in a dark sci-fi environment."
+
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # This prompt makes Gemini an Art Director
+    instruction = f"""
+    Analyze this codebase to understand its function (e.g., is it a Database? CLI tool? Web App? AI Agent?).
+    
+    Your task: Create a prompt for an Image Generator (Stable Diffusion) to create a "Hero Image" for this repo.
+    
+    1. Identify the 'Core Concept' (e.g., Automation = Gears, AI = Brain, Web = Interface, Security = Shield).
+    2. Describe a SINGLE, high-tech 3D object representing this concept.
+    3. Keep it abstract and sci-fi.
+    
+    Examples:
+    - For a CLI Tool: "A glowing futuristic mechanical cyber-hand holding a digital wrench, isometric view."
+    - For a Database: "A towering monolith server block glowing with purple data streams, isometric view."
+    - For a Web App: "A floating holographic glass interface dashboard in a dark void, isometric view."
+    
+    Code Context:
+    {code_context}
+    
+    Output ONLY the visual description sentence. Do NOT use words like "diagram" or "flowchart".
     """
     
-    return specific_flow
+    try:
+        response = model.generate_content(instruction)
+        visual_idea = response.text.strip()
+        print(f"💡 Gemini Idea: {visual_idea}")
+        return visual_idea
+    except Exception as e:
+        print(f"⚠️ Gemini Error: {e}")
+        return "A futuristic central server block connected to multiple glowing data nodes."
 
 def generate_image_hf(visual_description):
     """Generates image using Hugging Face InferenceClient."""
