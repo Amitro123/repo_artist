@@ -142,4 +142,13 @@ if __name__ == "__main__":
     code_ctx = get_code_context()
     scene_desc = analyze_and_prompt(code_ctx)
     img_bytes = generate_image_hf(scene_desc)
+    
+    if not img_bytes:
+        print("❌ Failed to generate image.")
+        sys.exit(1)
+        
     save_image(img_bytes)
+    
+    if not os.path.exists("assets/architecture_diagram.png"):
+        print("❌ Image file was not saved.")
+        sys.exit(1)
