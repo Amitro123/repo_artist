@@ -145,6 +145,7 @@ if __name__ == "__main__":
 
     code_ctx = get_code_context()
     scene_desc = analyze_and_prompt(code_ctx)
+    print(f"\n🧠 GEMINI OUTPUT:\n{scene_desc}\n") 
     img_bytes = generate_image_hf(scene_desc)
     
     if not img_bytes:
