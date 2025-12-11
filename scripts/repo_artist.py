@@ -5,22 +5,20 @@ import google.generativeai as genai
 from pathlib import Path
 
 # --- CONFIGURATION ---
-# Kroki is a free service that converts code to diagrams
 KROKI_ENDPOINT = "https://kroki.io/mermaid/png"
 
 def get_code_context(root_dir="."):
-    """Harvests folder structure for Gemini architecture understanding."""
+    """Harvests file structure."""
     structure = []
-    ignore_dirs = {'.git', 'node_modules', 'venv', '__pycache__', 'assets', '.github', '.idea'}
+    ignore_dirs = {'.git', 'node_modules', 'venv', '__pycache__', 'assets', '.github', '.idea', 'tests'}
     important_extensions = {'.py', '.js', '.ts', '.jsx', '.tsx', '.json', '.md', '.yml', 'Dockerfile'}
     
     print("📂 Harvesting project structure...")
     
     for root, dirs, files in os.walk(root_dir):
         dirs[:] = [d for d in dirs if d not in ignore_dirs]
-        
         depth = root.count(os.sep) - root_dir.count(os.sep)
-        if depth > 2: continue # Don't go too deep
+        if depth > 2: continue 
             
         indent = "  " * depth
         folder_name = os.path.basename(root)
@@ -34,7 +32,7 @@ def get_code_context(root_dir="."):
     return "\n".join(structure)
 
 def generate_mermaid_code(code_context):
-    """Asks Gemini to write the diagram code."""
+    """Generates CLEAN Mermaid code via Gemini."""
     print("🧠 Analyzing architecture with Gemini...")
     
     if not os.getenv("GEMINI_API_KEY"):
@@ -42,7 +40,7 @@ def generate_mermaid_code(code_context):
         return None
 
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    # Using 2.5-flash-lite as requested in previous turns
+    # Auto-corrected to 2.5-flash-lite to avoid deprecation errors
     model = genai.GenerativeModel('gemini-2.5-flash-lite') 
     
     instruction = f"""
@@ -50,11 +48,11 @@ def generate_mermaid_code(code_context):
     Analyze this file structure and generate a Mermaid.js flowchart (graph TD).
     
     Rules:
-    1. Identify the main components (Frontend, Backend, DB, AI, External APIs).
-    2. Draw arrows showing the logical data flow.
-    3. Use subgraphs to group related files (e.g. subgraph Backend).
-    4. Keep it clean and high-level.
-    5. Output ONLY the raw Mermaid code. No markdown formatting.
+    1. Start immediately with 'graph TD'.
+    2. Define nodes with clear IDs and Labels (e.g., A[Client] --> B[Server]).
+    3. Do NOT use special characters inside labels that might break syntax.
+    4. Group related files using subgraphs (subgraph Backend ... end).
+    5. Output ONLY the raw code. NO markdown backticks (```). NO explanations.
     
     File Structure:
     {code_context}
@@ -63,22 +61,29 @@ def generate_mermaid_code(code_context):
     try:
         response = model.generate_content(instruction)
         mermaid_code = response.text.strip()
-        # Clean up Gemini markdown artifacts
+        
+        # --- Aggressive Markdown Cleaning ---
+        # Remove all possible markdown wrappers
         mermaid_code = mermaid_code.replace("```mermaid", "").replace("```", "").strip()
-        print(f"💡 Generated Mermaid Code:\n{mermaid_code[:100]}...\n")
+        
+        # Ensure it starts with 'graph ' (sometimes Gemini adds preamble)
+        if "graph " not in mermaid_code:
+            mermaid_code = "graph TD\n" + mermaid_code
+            
+        print(f"💡 Generated Mermaid Code:\n{mermaid_code}\n")
         return mermaid_code
     except Exception as e:
         print(f"⚠️ Gemini Error: {e}")
         return None
 
 def render_diagram_kroki(mermaid_code, output_path="assets/architecture_diagram.png"):
-    """Sends code to Kroki and gets an image."""
+    """Renders the diagram via Kroki."""
     if not mermaid_code: return
 
     print(f"🎨 Rendering diagram via Kroki...")
     
     try:
-        # Kroki requires Base64 encoding
+        # Base64 Encode (URL Safe)
         encoded_code = base64.urlsafe_b64encode(mermaid_code.encode('utf8')).decode('utf8')
         url = f"{KROKI_ENDPOINT}/{encoded_code}"
 
@@ -91,6 +96,8 @@ def render_diagram_kroki(mermaid_code, output_path="assets/architecture_diagram.
             print(f"✅ Diagram saved successfully to {output_path}!")
         else:
             print(f"❌ Error from Kroki: {response.status_code}")
+            # Ensure helpful debug info is printed
+            print(f"Try debugging here: https://kroki.io/mermaid/svg/{encoded_code}")
 
     except Exception as e:
         print(f"❌ Connection Error: {e}")
