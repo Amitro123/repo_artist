@@ -59,20 +59,29 @@ def analyze_and_prompt(code_context):
     model = genai.GenerativeModel('gemini-2.5-flash-lite')
     
     instruction = f"""
-    Analyze this codebase architecture.
-    Your task is to complete the visual description for a 3D architecture diagram.
+    You are analyzing a codebase to create a DETAILED visual description for a 3D isometric architecture diagram generator.
     
-    Describe specific 3D objects to represent the tech stack.
-    - Frontend/Client = Blue/Cyan glass blocks.
-    - Backend/Processing = Purple/Magenta glowing cores.
-    - Database = Cylindrical storage units.
+    IMPORTANT RULES:
+    1. Identify ALL major components (scripts, workflows, APIs, databases, services)
+    2. Describe EXACTLY what each component does based on the code
+    3. Use SPECIFIC spatial layout (left, right, center, above, below)
+    4. Mention the ACTUAL file/folder names you see in the code
+    5. Create a FLOWING narrative showing how data moves through the system
     
-    Example output: "A central glowing cubic Python hub receives a blue data pipe from a 3D Chrome Extension block on the left, and sends a purple data pipe to a glowing brain-shaped AI model on the right."
+    VISUAL STYLE GUIDE:
+    - Input sources (files, APIs, user input) = Electric CYAN/BLUE glass blocks or transparent cubes
+    - Processing logic (Python scripts, functions) = Deep PURPLE/MAGENTA glowing cores or spheres  
+    - Data storage (databases, files) = Cylindrical PURPLE storage units with holographic rings
+    - External services (APIs, AI models) = Glowing brain-shaped or crystalline structures
+    - Workflows/automation = Floating control panels with neon circuit patterns
     
-    Code Context:
+    EXAMPLE GOOD OUTPUT:
+    "On the LEFT, a cyan glass cube labeled 'GitHub Actions Workflow' sends a blue data conduit to the CENTER where a large purple glowing sphere labeled 'scripts/repo_artist.py' processes code. From this sphere, THREE purple pipes branch out: one connects UPWARD to a floating cyan '.env configuration' panel, another connects RIGHT to a glowing brain-shaped crystal labeled 'Google Gemini AI' with electrical pulses, and the third connects DOWNWARD to a massive pink hexagonal crystal labeled 'Hugging Face SDXL' emitting light rays. Finally, a thin blue conduit returns from SDXL back to wrap around 'assets/architecture_diagram.png' - a small glowing cube at the BOTTOM-RIGHT."
+    
+    NOW ANALYZE THIS CODEBASE:
     {code_context}
     
-    Output ONLY the visual description sentence.
+    OUTPUT: Write a SINGLE detailed paragraph (5-8 sentences) describing the 3D scene with spatial positions and data flow. Be SPECIFIC about filenames and services you detect.
     """
     
     try:
