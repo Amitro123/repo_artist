@@ -5,152 +5,117 @@ from PIL import Image
 import google.generativeai as genai
 from pathlib import Path
 import time
-import sys
-from dotenv import load_dotenv
-
-# Load .env file
-load_dotenv()
 
 # --- CONFIGURATION ---
-# Using SDXL Base 1.0 (Free Inference API) - known for great 3D composition
 HF_MODEL_ID = "stabilityai/stable-diffusion-xl-base-1.0"
+HF_API_URL = f"https://api-inference.huggingface.co/models/{HF_MODEL_ID}"
 
-# The exact premium 3D prompt structure
-# Hero Object Style: Single, High-Impact 3D Element
+# NEW STYLE: Clean, Glassmorphism, Single Centered Icon
 STYLE_TEMPLATE = """
-Hyper-realistic 3D render, dark mode, neon tech aesthetic, isometric view.
-Volumetric lighting, octane render, 8k, unreal engine 5, glowing glass and metal textures.
-Background is a dark circuit board pattern.
+A single high-quality 3D glassmorphism icon floating in the center. 
+Dark background, soft studio lighting, neon rim light. 
+Frosted glass texture, semi-transparent, glowing edges. 
+Minimalist, modern UI design, dribbble style, 8k render. 
 Subject:
 """
 
 def get_code_context(root_dir="."):
-    """Harvests code structure for context."""
-    context = []
-    ignore_dirs = {'.git', 'node_modules', 'venv', '__pycache__', 'assets', '.github', '.idea'}
-    extensions = {'.py', '.js', '.ts', '.jsx', '.tsx', '.json', '.md', '.yml', '.yaml'}
-    
-    print("📂 Harvesting code context...")
-    
+    """Mock context to force specific outcomes based on repo name/content."""
+    file_list = []
     for root, dirs, files in os.walk(root_dir):
-        dirs[:] = [d for d in dirs if d not in ignore_dirs]
+        if '.git' in root: continue
         for file in files:
-            if Path(file).suffix in extensions:
-                file_path = os.path.join(root, file)
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        content = f.read(1500) 
-                        context.append(f"--- File: {file_path} ---\n{content}\n")
-                except Exception:
-                    continue
-    return "\n".join(context[:10]) 
+            if file.endswith(('.py', '.js', '.ts', '.md')):
+                file_list.append(file)
+    return ", ".join(file_list[:50])
 
 def analyze_and_prompt(code_context):
-    """
-    Uses Gemini to dynamically decide the visual subject based on the code.
-    Instead of a complex flow, it chooses one powerful 'Hero Object'.
-    """
-    print("🧠 Analyzing code DNA with Gemini...")
+    print("🧠 Choosing the Hero Object with Gemini...")
     
     if not os.getenv("GEMINI_API_KEY"):
-        return "A futuristic glowing crystal structure in a dark sci-fi environment."
+        return "A glowing glass cube with a python logo inside."
 
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    # Using 2.5-flash-lite as requested in previous turn
     model = genai.GenerativeModel('gemini-2.5-flash-lite')
     
-    # This prompt makes Gemini an Art Director
     instruction = f"""
-    Analyze this codebase to understand its function (e.g., is it a Database? CLI tool? Web App? AI Agent?).
+    Analyze these filenames to understand the project type.
+    Choose ONE single physical object to represent it as a 3D Icon.
     
-    Your task: Create a prompt for an Image Generator (Stable Diffusion) to create a "Hero Image" for this repo.
+    - If Automation/Bot -> "A futuristic glass gear" or "A cute robot head"
+    - If AI/Brain -> "A glowing crystal brain"
+    - If Web/Code -> "A glass isometric bracket symbol"
+    - If Security -> "A glass shield with a lock"
     
-    1. Identify the 'Core Concept' (e.g., Automation = Gears, AI = Brain, Web = Interface, Security = Shield).
-    2. Describe a SINGLE, high-tech 3D object representing this concept.
-    3. Keep it abstract and sci-fi.
+    Filenames: {code_context}
     
-    Examples:
-    - For a CLI Tool: "A glowing futuristic mechanical cyber-hand holding a digital wrench, isometric view."
-    - For a Database: "A towering monolith server block glowing with purple data streams, isometric view."
-    - For a Web App: "A floating holographic glass interface dashboard in a dark void, isometric view."
-    
-    Code Context:
-    {code_context}
-    
-    Output ONLY the visual description sentence. Do NOT use words like "diagram" or "flowchart".
+    Output ONLY the object description (e.g., "A glowing glass gear").
     """
     
     try:
         response = model.generate_content(instruction)
         visual_idea = response.text.strip()
-        print(f"💡 Gemini Idea: {visual_idea}")
+        print(f"💡 Gemini Concept: {visual_idea}")
         return visual_idea
     except Exception as e:
         print(f"⚠️ Gemini Error: {e}")
-        return "A futuristic central server block connected to multiple glowing data nodes."
+        return "A glowing glass hexagon"
 
 def generate_image_hf(visual_description):
-    """Generates image using Hugging Face InferenceClient."""
-    from huggingface_hub import InferenceClient
+    print(f"🎨 Generating Icon with SDXL...")
     
-    print(f"🎨 Generating image with SDXL via Hugging Face...")
+    # Combine template + object
+    final_prompt = f"{STYLE_TEMPLATE} {visual_description}, centered composition."
+    print(f"📝 Prompt: {final_prompt}")
     
-    # Combine the style template with the specific flow
-    final_prompt = f"{STYLE_TEMPLATE} Scene description: {visual_description}"
+    headers = {"Authorization": f"Bearer {os.getenv('HF_TOKEN')}"}
     
-    if not os.getenv('HF_TOKEN'):
-        print("❌ Error: Missing HF_TOKEN")
-        return None
-    
+    payload = {
+        "inputs": final_prompt,
+        "parameters": {
+            "negative_prompt": "text, words, letters, complex, messy, blurry, low quality, deformed, multiple objects, cropped",
+            "num_inference_steps": 25,
+            "guidance_scale": 7.0
+        }
+    }
+
     try:
-        client = InferenceClient(token=os.getenv('HF_TOKEN'))
+        response = requests.post(HF_API_URL, headers=headers, json=payload)
         
-        image = client.text_to_image(
-            prompt=final_prompt,
-            model=HF_MODEL_ID,
-            negative_prompt="text, watermark, low quality, blurry, 2d, flat, drawing, sketch, human, face, deformed",
-            num_inference_steps=30,
-            guidance_scale=8.0
-        )
-        
-        # Convert PIL Image to bytes
-        img_bytes = io.BytesIO()
-        image.save(img_bytes, format='PNG')
-        return img_bytes.getvalue()
+        if response.status_code == 503:
+            print("⏳ Model loading, waiting 20s...")
+            time.sleep(20)
+            response = requests.post(HF_API_URL, headers=headers, json=payload)
+
+        if response.status_code != 200:
+            print(f"❌ Error: {response.text}")
+            return None
+            
+        return response.content
         
     except Exception as e:
-        print(f"❌ Error from HF: {e}")
+        print(f"❌ Error: {e}")
         return None
 
 def save_image(image_bytes, output_path="assets/architecture_diagram.png"):
     if not image_bytes:
         return
-
     print(f"💾 Saving to {output_path}...")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    
     try:
         image = Image.open(io.BytesIO(image_bytes))
         image.save(output_path)
-        print("✅ Image saved successfully!")
+        print("✅ Image saved!")
     except Exception as e:
-        print(f"❌ Error saving image: {e}")
+        print(f"❌ Save Error: {e}")
 
 if __name__ == "__main__":
     if not os.getenv("HF_TOKEN"):
-        print("❌ Error: Missing HF_TOKEN environment variable.")
-        sys.exit(1)
+        print("❌ Error: Missing HF_TOKEN.")
+        exit(1)
 
     code_ctx = get_code_context()
     scene_desc = analyze_and_prompt(code_ctx)
-    print(f"\n🧠 GEMINI OUTPUT:\n{scene_desc}\n") 
     img_bytes = generate_image_hf(scene_desc)
-    
-    if not img_bytes:
-        print("❌ Failed to generate image.")
-        sys.exit(1)
-        
     save_image(img_bytes)
-    
-    if not os.path.exists("assets/architecture_diagram.png"):
-        print("❌ Image file was not saved.")
-        sys.exit(1)
