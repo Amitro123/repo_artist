@@ -56,7 +56,7 @@ def analyze_and_prompt(code_context):
         return "A central glowing cubic hub receives blue data pipes and sends purple data pipes to a glowing brain-shaped AI model."
 
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash-lite')
     
     instruction = f"""
     Analyze this codebase architecture.
