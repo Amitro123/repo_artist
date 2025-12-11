@@ -1,128 +1,101 @@
 import os
 import requests
-import io
-from PIL import Image
+import base64
 import google.generativeai as genai
 from pathlib import Path
-import time
-import urllib.parse
-import random
 
 # --- CONFIGURATION ---
-# Using Pollinations/Flux - Strong model for composition
-POLLINATIONS_URL = "https://image.pollinations.ai/prompt/"
-
-# Expanded style to allow a full scene, not just a single icon
-STYLE_TEMPLATE = """
-Isometric 3D technical architecture visualization, dark mode, neon tech aesthetic. 
-Floating glass and crystal modules connected by glowing data streams. 
-Octane render, unreal engine 5, hyper-realistic, 8k, volumetric lighting. 
-Clean composition, translucent frosted glass materials.
-Scene description:
-"""
+# Kroki is a free service that converts code to diagrams
+KROKI_ENDPOINT = "https://kroki.io/mermaid/png"
 
 def get_code_context(root_dir="."):
-    """Harvests file names to understand the tech stack structure."""
-    file_list = []
-    # More aggressive filtering to focus on main files
-    ignore_dirs = {'.git', 'node_modules', 'venv', '__pycache__', 'assets', '.github', '.idea', 'tests', 'docs'}
+    """Harvests folder structure for Gemini architecture understanding."""
+    structure = []
+    ignore_dirs = {'.git', 'node_modules', 'venv', '__pycache__', 'assets', '.github', '.idea'}
+    important_extensions = {'.py', '.js', '.ts', '.jsx', '.tsx', '.json', '.md', '.yml', 'Dockerfile'}
+    
+    print("📂 Harvesting project structure...")
     
     for root, dirs, files in os.walk(root_dir):
         dirs[:] = [d for d in dirs if d not in ignore_dirs]
+        
+        depth = root.count(os.sep) - root_dir.count(os.sep)
+        if depth > 2: continue # Don't go too deep
+            
+        indent = "  " * depth
+        folder_name = os.path.basename(root)
+        if folder_name and folder_name != ".":
+             structure.append(f"{indent}📁 {folder_name}/")
+        
         for file in files:
-            # Focus on core code and config files
-            if file.endswith(('.py', '.js', '.ts', '.tsx', '.go', '.rs', 'Dockerfile', 'docker-compose.yml')):
-                # Keep folder name for context (e.g. backend/main.py)
-                path = os.path.relpath(os.path.join(root, file), root_dir)
-                file_list.append(path)
-    
-    # Take top 40 files that aren't too deep
-    return ", ".join(sorted(file_list)[:40])
+            if Path(file).suffix in important_extensions:
+                structure.append(f"{indent}  📄 {file}")
+                
+    return "\n".join(structure)
 
-def analyze_and_prompt(code_context):
-    print("🧠 Analyzing Architecture structure with Gemini...")
+def generate_mermaid_code(code_context):
+    """Asks Gemini to write the diagram code."""
+    print("🧠 Analyzing architecture with Gemini...")
     
     if not os.getenv("GEMINI_API_KEY"):
-        print("⚠️ Missing GEMINI_API_KEY. Using default.")
-        return "A central computing core connected to floating data modules."
+        print("❌ Error: GEMINI_API_KEY missing.")
+        return None
 
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    # Using 2.5-flash as 1.5 is deprecated
-    model = genai.GenerativeModel('gemini-2.5-flash-lite')
+    # Using 2.5-flash-lite as requested in previous turns
+    model = genai.GenerativeModel('gemini-2.5-flash-lite') 
     
-    # --- Major Change Here ---
-    # Asking Gemini to analyze structure and describe a composition
     instruction = f"""
-    You are a Technical Artist. Analyze these project filenames to understand the software architecture.
-    
-    Your task: Create a visual description of 3-4 interconnected 3D glass modules representing the key parts of this system.
+    You are a Senior Software Architect.
+    Analyze this file structure and generate a Mermaid.js flowchart (graph TD).
     
     Rules:
-    1. Identify key components (e.g., "Backend API", "Frontend App", "Database", "AI Worker", "Orchestrator").
-    2. Describe them as glowing glass/crystal structures.
-    3. Describe how they are connected by data pipes.
-    4. Keep it abstract but structured. Do NOT ask for specific text labels.
+    1. Identify the main components (Frontend, Backend, DB, AI, External APIs).
+    2. Draw arrows showing the logical data flow.
+    3. Use subgraphs to group related files (e.g. subgraph Backend).
+    4. Keep it clean and high-level.
+    5. Output ONLY the raw Mermaid code. No markdown formatting.
     
-    Example Output for a Fullstack app: 
-    "A central glowing cubic server block connected via blue pipes to a floating glass interface panel on the left, and a cylindrical crystal database unit on the right."
-    
-    Filenames context: {code_context}
-    
-    Output ONLY the visual description sentence.
+    File Structure:
+    {code_context}
     """
     
     try:
         response = model.generate_content(instruction)
-        visual_idea = response.text.strip()
-        print(f"💡 Gemini Structural Concept: {visual_idea}")
-        return visual_idea
+        mermaid_code = response.text.strip()
+        # Clean up Gemini markdown artifacts
+        mermaid_code = mermaid_code.replace("```mermaid", "").replace("```", "").strip()
+        print(f"💡 Generated Mermaid Code:\n{mermaid_code[:100]}...\n")
+        return mermaid_code
     except Exception as e:
         print(f"⚠️ Gemini Error: {e}")
-        return "A central glowing computing core connected to multiple satellite data modules."
-
-def generate_image_pollinations(visual_description):
-    print(f"🎨 Generating Structural Image via Pollinations (Flux)...")
-    
-    full_prompt = f"{STYLE_TEMPLATE} {visual_description}"
-    
-    # Added random seed for variety and enhance=true for quality
-    seed = random.randint(0, 100000)
-    
-    encoded_prompt = urllib.parse.quote(full_prompt)
-    url = f"{POLLINATIONS_URL}{encoded_prompt}?width=1280&height=720&nologo=true&model=flux&enhance=true&seed={seed}"
-    
-    print(f"🔗 Calling URL length: {len(url)}")
-
-    try:
-        response = requests.get(url, timeout=45) # Extended timeout slightly
-        
-        if response.status_code == 200:
-            return response.content
-        else:
-            print(f"❌ Error from Pollinations: {response.status_code} - {response.text}")
-            return None
-            
-    except Exception as e:
-        print(f"❌ Connection Error: {e}")
         return None
 
-def save_image(image_bytes, output_path="assets/architecture_diagram.png"):
-    if not image_bytes:
-        return
+def render_diagram_kroki(mermaid_code, output_path="assets/architecture_diagram.png"):
+    """Sends code to Kroki and gets an image."""
+    if not mermaid_code: return
 
-    print(f"💾 Saving to {output_path}...")
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    print(f"🎨 Rendering diagram via Kroki...")
     
     try:
-        image = Image.open(io.BytesIO(image_bytes))
-        image.save(output_path)
-        print("✅ Image saved successfully!")
+        # Kroki requires Base64 encoding
+        encoded_code = base64.urlsafe_b64encode(mermaid_code.encode('utf8')).decode('utf8')
+        url = f"{KROKI_ENDPOINT}/{encoded_code}"
+
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            with open(output_path, 'wb') as f:
+                f.write(response.content)
+            print(f"✅ Diagram saved successfully to {output_path}!")
+        else:
+            print(f"❌ Error from Kroki: {response.status_code}")
+
     except Exception as e:
-        print(f"❌ Save Error: {e}")
+        print(f"❌ Connection Error: {e}")
 
 if __name__ == "__main__":
-    code_ctx = get_code_context()
-    print(f"📂 Context sent to AI: {code_ctx[:200]}...") # Debug print
-    scene_desc = analyze_and_prompt(code_ctx)
-    img_bytes = generate_image_pollinations(scene_desc)
-    save_image(img_bytes)
+    structure = get_code_context()
+    mermaid_code = generate_mermaid_code(structure)
+    render_diagram_kroki(mermaid_code)
