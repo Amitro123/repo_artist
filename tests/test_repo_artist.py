@@ -34,8 +34,10 @@ class TestRepoArtist(unittest.TestCase):
         result = repo_artist.build_hero_prompt(arch)
         
         self.assertIn("System overview:", result)
-        self.assertIn("Components as floating platforms:", result)
-        self.assertIn('Platform 1: Label "Component A"', result)
+        self.assertIn("Platforms:", result)
+        self.assertIn('Platform 1 labeled "Component A"', result)
+        self.assertIn('An arrow from "Component A" to "Component B"', result)
+        self.assertIn("Visual style: professional futuristic", result)
 
     def test_build_hero_prompt_with_style(self):
         """Test build_hero_prompt with custom style variation."""
@@ -45,7 +47,7 @@ class TestRepoArtist(unittest.TestCase):
             "connections": []
         }
         result = repo_artist.build_hero_prompt(arch, hero_style="more neon")
-        self.assertIn("Additional style: more neon", result)
+        self.assertIn("more neon", result)
 
     def test_build_hero_prompt_handles_none(self):
         """Test build_hero_prompt with None."""
