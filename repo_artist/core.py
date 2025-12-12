@@ -249,7 +249,7 @@ def generate_hero_image_pollinations(prompt, output_path=None):
     print("🖼️ Step 4: Generating image via Pollinations.ai...")
     
     encoded_prompt = urllib.parse.quote(prompt, safe='')
-    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1280&height=720&model=flux"
+    url = POLLINATIONS_URL.format(prompt=encoded_prompt) + "?width=1280&height=720&model=flux"
     
     print(f"   Requesting image from Pollinations...")
     
@@ -364,7 +364,10 @@ def update_readme_content(original_content, image_url="assets/architecture_diagr
     # or just checking if our specific image is there.
     # We will look for a similar pattern to replace, or insert at top.
     
-    pattern = r'!\[.*?\]\(.*architecture_diagram\.png\)'
+    # Escape special characters in the filename for regex
+    escaped_filename = re.escape(os.path.basename(image_url))
+    pattern = r'!\[.*?\]\(.*' + escaped_filename + r'\)'
+
     if re.search(pattern, original_content):
         new_content = re.sub(pattern, image_line, original_content)
         print("   Updated existing architecture image reference")
