@@ -9,40 +9,63 @@ Repo-Artist is an automation tool that automatically generates a "Hero Image" fo
     - **Tier 1 (Premium)**: Google Imagen 3 (Vertex AI / Gemini API)
     - **Tier 2 (Free)**: Pollinations.ai (Flux Model - HTTP API)
     - **Tier 3 (Fallback)**: Mermaid.js diagram
+- **Backend**: FastAPI, Uvicorn, GitHub OAuth
+- **Frontend**: React, Vite, TypeScript, Tailwind CSS (Single Page App)
 - **CI/CD**: GitHub Actions
 - **Language**: Python 3.10+
 
 ## Components
 
-### 1. Local Trigger (`smart_push.py`)
+### 1. Core Logic (`repo_artist/core.py`)
+- **Purpose**: Pure business logic library, reusable by CLI and Web App.
+- **Modules**:
+    - `get_code_context`: Harvests file structure.
+    - `analyze_architecture`: Gemini-powered architecture inference.
+    - `build_hero_prompt`: Creates visual prompts.
+    - `generate_hero_image_*`: Handles image generation providers.
+    - `update_readme_content`: Generates updated README string.
+
+### 2. CLI Tools
+- **Setup Wizard (`scripts/repo_artist_setup.py`)**:
+    - Interactive configuration for `.env`.
+    - Guides GitHub OAuth App creation.
+    - Auto-launches Web App.
+- **Logic CLI (`scripts/cli.py`)**:
+    - `generate`: Analyze repo -> generate image -> update README.
+    - `setup-ci`: Configure GitHub Actions workflow.
+
+### 3. Web Application (`web/`)
+- **Backend (`web/backend/`)**:
+    - **FastAPI**: Serves API and React Static Files.
+    - **Router**: `/api` for logic, `/auth` for GitHub OAuth, `/` serves SPA.
+    - **Auth**: GitHub OAuth flow (Login -> Callback -> Token).
+- **Frontend (`web/frontend/`)**:
+    - **Stack**: React + Vite + TypeScript.
+    - **UI**: Modern Dark Mode, Cyberpunk/Glassmorphism aesthetics.
+    - **Features**:
+        - **Configuration**: Interactive inputs for Repo URL & Gemini Key.
+        - **Preview**: Visual Hero Image + Markdown Render + Diff View.
+        - **Apply**: One-click commit to GitHub via REST API.
+
+### 4. Local Trigger (`smart_push.py`)
 - Wraps `git push`.
 - Detects architecture changes (> 50 lines or > 3 files).
-- Prompts user (`y/N`) to generate art.
-- Options:
-    1.  **Full Refresh**: Re-analyze architecture & regenerate image.
-    2.  **Reuse Architecture**: Only regenerate image (faster).
+- Options: Full Refresh vs Rewrite Only.
 - Adds `[GEN_ART]` tag to commit.
 
-### 2. Core Logic (`scripts/repo_artist.py`)
-- **Inputs**: `GEMINI_API_KEY`, `ARCH_MODEL_NAME` (Optional).
-- **Process**:
-    1.  **Harvest**: Walk directory for code files (smart filtering).
-    2.  **Analyze**: Send semantic structure to Gemini → JSON Graph.
-        - *Caching*: Stores result in `assets/architecture.json`.
-    3.  **Synthesize**: Build "Sci-Fi Isometric Flow" prompt dynamically.
-    4.  **Generate**: Multi-tier execution (Imagen → Pollinations → Mermaid).
-    5.  **Update**: Inserts/updates hero image in `README.md`.
-- **Style**: High-end sci-fi isometric flow diagram, dark UI, neon blue/magenta, glass platforms.
-
-### 3. CI Pipeline (`.github/workflows/generate_art.yml`)
+### 5. CI Pipeline (`.github/workflows/generate_art.yml`)
 - Trigger: Push with `[GEN_ART]` or Manual Dispatch.
-- Action: Install deps -> Run script -> Commit image & JSON.
+- Action: Install deps -> Run CLI script -> Commit image & JSON.
 - Secrets: `GEMINI_API_KEY`, `ARCH_MODEL_NAME`.
 
 ## Setup
-1.  Install dependencies: `pip install -r requirements.txt`
-2.  Set environment variables:
-    - Copy `.env.example` to `.env`.
-    - Set `GEMINI_API_KEY` (Get from [Google AI Studio](https://aistudio.google.com/app/apikey)).
-    - (Optional) Set `ARCH_MODEL_NAME` to override module (e.g., `gemini-2.0-flash`).
-3.  Use `python smart_push.py` instead of `git push`.
+1.  **Install dependencies**: `pip install -r requirements.txt` (and `npm install` in frontend).
+2.  **Run Setup Wizard**:
+    ```bash
+    python scripts/repo_artist_setup.py
+    ```
+    (Handles `.env`, GitHub OAuth, and Server Launch).
+
+3.  **Manual Launch**:
+    - Backend: `uvicorn web.backend.main:app --reload`
+    - Frontend Dev: `cd web/frontend && npm run dev`

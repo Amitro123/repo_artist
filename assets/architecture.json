@@ -1,30 +1,67 @@
 {
-  "system_summary": "This Python-based system is designed to intelligently push data or notifications to an external service, complemented by a command-line utility for analyzing repository information.",
+  "system_summary": "This system provides an AI-powered agent to analyze Git repositories, generate insights, and optionally visualize repository structures, accessible via a command-line interface.",
   "components": [
     {
-      "id": "smart_push_worker",
-      "label": "Smart Push Worker",
-      "type": "worker",
-      "role": "Orchestrates and executes intelligent data or notification pushing operations to a designated external service."
+      "id": "github_agent",
+      "label": "GitHub Agent Service",
+      "type": "backend",
+      "role": "Orchestrates interactions with GitHub repositories, fetches code, and manages project analysis workflows, including smart push operations."
     },
     {
-      "id": "repo_artist_cli",
-      "label": "Repository Artist CLI",
+      "id": "ai_analysis_service",
+      "label": "AI Analysis Service",
+      "type": "ai_model",
+      "role": "Leverages AI models, specifically LLMs, to perform deep code analysis, generate summaries, and evaluate repository projects based on fetched data."
+    },
+    {
+      "id": "repo_processor",
+      "label": "Repository Processor",
+      "type": "backend",
+      "role": "Processes repository data, potentially generating visualizations or structured information about the codebase for deeper insights."
+    },
+    {
+      "id": "cli_tool",
+      "label": "CLI Tool",
       "type": "cli",
-      "role": "Provides command-line interface utilities for analyzing or visualizing aspects of a code repository."
+      "role": "Provides a command-line interface for users to initiate repository analysis, view results, or manage system operations."
     },
     {
-      "id": "external_push_target",
-      "label": "External Push Target",
+      "id": "github_api",
+      "label": "GitHub API",
       "type": "external_service",
-      "role": "Represents the external system or API endpoint that receives data or notifications from the Smart Push Worker."
+      "role": "The external Git hosting platform providing programmatic access to repositories and acting as a source/destination for data."
     }
   ],
   "connections": [
     {
-      "from": "smart_push_worker",
-      "to": "external_push_target",
-      "label": "Pushes data/notifications to"
+      "from": "cli_tool",
+      "to": "github_agent",
+      "label": "User interaction and task initiation"
+    },
+    {
+      "from": "github_agent",
+      "to": "github_api",
+      "label": "Fetches repository data and interacts with Git services"
+    },
+    {
+      "from": "github_agent",
+      "to": "ai_analysis_service",
+      "label": "Sends project context for AI analysis"
+    },
+    {
+      "from": "ai_analysis_service",
+      "to": "github_agent",
+      "label": "Returns AI-generated insights and evaluations"
+    },
+    {
+      "from": "github_agent",
+      "to": "repo_processor",
+      "label": "Passes repository data for structural analysis or visualization"
+    },
+    {
+      "from": "cli_tool",
+      "to": "repo_processor",
+      "label": "Directly invokes repository processing functions"
     }
   ]
 }

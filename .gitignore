@@ -8,8 +8,6 @@ __pycache__/
 venv/
 env/
 .venv/
-
-# Environment Variables
 .env
 
 # System
@@ -20,3 +18,11 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
+
+# Frontend / Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+.vite/
+web/frontend/dist/
+*.tsbuildinfo

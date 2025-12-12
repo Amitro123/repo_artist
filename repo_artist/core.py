@@ -1,52 +1,23 @@
-#!/usr/bin/env python3
 """
-Repo-Artist: Architecture Hero Image Generator
+Repo-Artist Core Logic
 
-Analyzes a Git repository and generates a sci-fi isometric architecture
-hero image that is automatically added to the repo's README.
-
-Pipeline:
-1. Harvest repository file structure
-2. Analyze with Gemini → JSON architecture (with caching)
-3. Build image prompt from architecture
-4. Generate PNG via HTTP image API (with caching)
-5. Update README with hero image reference
-
-Usage:
-    python scripts/repo_artist.py [--mode image|mermaid] [--root DIR]
-    python scripts/repo_artist.py --refresh-architecture    # Force new LLM analysis
-    python scripts/repo_artist.py --force-image             # Regenerate image
-    python scripts/repo_artist.py --hero-style "more neon"  # Custom style variation
-
-Environment Variables:
-    GEMINI_API_KEY      - Required for architecture analysis
-    ARCH_MODEL_NAME     - LLM model to use (default: gemini-2.5-flash)
+Contains the pure business logic for harvesting, analysis, and generation.
 """
 
 import os
 import re
-import sys
 import json
-import argparse
-import requests
 import urllib.parse
 import base64
 import google.generativeai as genai
+import requests
+import time
 from pathlib import Path
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # --- CONFIGURATION ---
-OUTPUT_PATH = "assets/architecture_diagram.png"
-ARCHITECTURE_CACHE_PATH = "assets/architecture.json"
 POLLINATIONS_URL = "https://image.pollinations.ai/prompt/{prompt}"
 MERMAID_INK_URL = "https://mermaid.ink/img/{encoded}"
-
-# Default model - can be overridden via ARCH_MODEL_NAME env var
 DEFAULT_MODEL = "gemini-2.5-flash"
-
 
 def get_code_context(root_dir="."):
     """Step 1: Harvests file structure from the repository."""
@@ -66,7 +37,7 @@ def get_code_context(root_dir="."):
         'go.mod', 'pom.xml', 'build.gradle'
     }
     
-    print("📂 Step 1: Harvesting project structure...")
+    print(f"📂 Step 1: Harvesting project structure from {root_dir}...")
     
     for root, dirs, files in os.walk(root_dir):
         dirs[:] = [d for d in dirs if d not in ignore_dirs]
@@ -89,7 +60,7 @@ def get_code_context(root_dir="."):
     return result
 
 
-def load_cached_architecture(cache_path=ARCHITECTURE_CACHE_PATH):
+def load_cached_architecture(cache_path):
     """Loads architecture from cache file if it exists."""
     if os.path.exists(cache_path):
         try:
@@ -103,7 +74,7 @@ def load_cached_architecture(cache_path=ARCHITECTURE_CACHE_PATH):
     return None
 
 
-def save_architecture_cache(architecture, cache_path=ARCHITECTURE_CACHE_PATH):
+def save_architecture_cache(architecture, cache_path):
     """Saves architecture JSON to cache file."""
     try:
         os.makedirs(os.path.dirname(cache_path), exist_ok=True)
@@ -116,30 +87,22 @@ def save_architecture_cache(architecture, cache_path=ARCHITECTURE_CACHE_PATH):
         return False
 
 
-def analyze_architecture(code_context, force_refresh=False, cache_path=ARCHITECTURE_CACHE_PATH):
+def analyze_architecture(code_context, api_key, model_name=DEFAULT_MODEL, force_refresh=False, cache_path=None):
     """
     Step 2: Analyzes code structure and returns JSON architecture via Gemini.
-    
-    Args:
-        code_context: File structure string
-        force_refresh: If True, skip cache and call LLM
-        cache_path: Path to architecture cache file
     """
     # Check cache first (unless force refresh)
-    if not force_refresh:
+    if not force_refresh and cache_path:
         cached = load_cached_architecture(cache_path)
         if cached:
             return cached
     
     print("🧠 Step 2: Analyzing architecture with Gemini...")
     
-    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        print("❌ Error: GEMINI_API_KEY not set.")
+        print("❌ Error: GEMINI_API_KEY not provided.")
         return None
 
-    # Use configurable model name
-    model_name = os.getenv("ARCH_MODEL_NAME", DEFAULT_MODEL)
     print(f"   Using model: {model_name}")
     
     genai.configure(api_key=api_key)
@@ -201,7 +164,8 @@ Now analyze the following repository file list and return ONLY the JSON object:
         print(f"   Connections: {len(architecture.get('connections', []))}")
         
         # Save to cache
-        save_architecture_cache(architecture, cache_path)
+        if cache_path:
+            save_architecture_cache(architecture, cache_path)
         
         return architecture
         
@@ -215,14 +179,7 @@ Now analyze the following repository file list and return ONLY the JSON object:
 
 
 def build_hero_prompt(architecture, hero_style=None):
-    """
-    Step 3: Takes the JSON from analyze_architecture() and returns a single text prompt
-    following the hero image style template.
-    
-    Args:
-        architecture: JSON architecture dict
-        hero_style: Optional style variation string to append
-    """
+    """Step 3: Builds the prompt for the image generation model."""
     if not architecture:
         return None
     
@@ -255,9 +212,7 @@ def build_hero_prompt(architecture, hero_style=None):
         comp_type = comp.get("type", "other").lower()
         role = comp.get("role", "Handles system functionality")
         
-        # Determine visual representation
         visual = type_visuals.get(comp_type, type_visuals["other"])
-        
         platform_lines.append(f'Platform {i} labeled "{label}" (type: {comp_type}) – shows {visual}, representing {role}.')
     
     # Build connection arrow descriptions
@@ -269,7 +224,6 @@ def build_hero_prompt(architecture, hero_style=None):
         conn_label = conn.get("label", "data flow")
         arrow_lines.append(f'An arrow from "{from_label}" to "{to_label}" labeled "{conn_label}".')
     
-    # Compose full prompt using refined sci-fi flow diagram structure
     prompt = f"""A high-end sci-fi isometric flow diagram of a {system_summary[:60]}..., with {len(components)} clearly labeled glowing 3D platforms connected by arrows.
 
 System overview: {system_summary}
@@ -282,7 +236,6 @@ Data flow:
 
 Visual style: professional futuristic dark UI, isometric 3D glass platforms, neon blue and magenta edges, large, crisp English labels on each platform, clear arrows with short labels, wide horizontal layout suitable for a README banner, no random text, no extra shapes, no unreadable scribbles."""
     
-    # Append custom style variation if provided
     if hero_style:
         prompt += f" {hero_style}"
         print(f"   Added style variation: {hero_style}")
@@ -291,50 +244,43 @@ Visual style: professional futuristic dark UI, isometric 3D glass platforms, neo
     return prompt
 
 
-# Alias for backward compatibility
-build_image_prompt = build_hero_prompt
-
-
-def generate_hero_image(prompt, output_path="assets/architecture_diagram.png"):
-    """
-    Calls a low-cost or free HTTP image model (Pollinations.ai)
-    with the given prompt and saves the returned PNG to output_path.
-    This works in plain GitHub Actions (no Antigravity-only APIs).
-    """
-    return generate_hero_image_pollinations(prompt, output_path)
-
-
-def generate_hero_image_pollinations(prompt, output_path):
+def generate_hero_image_pollinations(prompt, output_path=None):
     """Step 4a: Generates image using Pollinations.ai free API."""
     print("🖼️ Step 4: Generating image via Pollinations.ai...")
     
-    # URL-encode the prompt
     encoded_prompt = urllib.parse.quote(prompt, safe='')
-    
-    # Add parameters for better quality
     url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1280&height=720&model=flux"
     
     print(f"   Requesting image from Pollinations...")
     
-    try:
-        response = requests.get(url, timeout=120)
-        
-        if response.status_code == 200:
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            with open(output_path, 'wb') as f:
-                f.write(response.content)
-            print(f"✅ Image saved to {output_path} ({len(response.content) // 1024} KB)")
-            return True
-        else:
-            print(f"❌ Pollinations error: HTTP {response.status_code}")
-            return False
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, timeout=120)
             
-    except requests.Timeout:
-        print("❌ Pollinations timeout (image generation took too long)")
-        return False
-    except Exception as e:
-        print(f"❌ Connection error: {e}")
-        return False
+            if response.status_code == 200:
+                if output_path:
+                    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                    with open(output_path, 'wb') as f:
+                        f.write(response.content)
+                    print(f"✅ Image saved to {output_path}")
+                return response.content
+            
+            elif response.status_code in [502, 503, 504]:
+                print(f"⚠️ Pollinations server busy (HTTP {response.status_code}). Retrying ({attempt + 1}/{max_retries})...")
+                time.sleep(1.5)
+                continue
+            
+            else:
+                print(f"❌ Pollinations error: HTTP {response.status_code}")
+                return None
+                
+        except Exception as e:
+            print(f"⚠️ Connection error (attempt {attempt + 1}): {e}")
+            time.sleep(1)
+            
+    print("❌ Failed to generate image from Pollinations after retries.")
+    return None
 
 
 def architecture_to_mermaid(architecture):
@@ -367,13 +313,13 @@ def architecture_to_mermaid(architecture):
     return "\n".join(lines)
 
 
-def generate_hero_image_mermaid(architecture, output_path):
+def generate_hero_image_mermaid(architecture, output_path=None):
     """Step 4b: Fallback - generates diagram using mermaid.ink."""
     print("🖼️ Step 4: Generating diagram via mermaid.ink (fallback)...")
     
     mermaid_code = architecture_to_mermaid(architecture)
     if not mermaid_code:
-        return False
+        return None
     
     print(f"   Mermaid code:\n{mermaid_code}\n")
     
@@ -382,209 +328,75 @@ def generate_hero_image_mermaid(architecture, output_path):
     
     try:
         response = requests.get(url, timeout=30)
-        
         if response.status_code == 200:
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            with open(output_path, 'wb') as f:
-                f.write(response.content)
-            print(f"✅ Diagram saved to {output_path}")
-            return True
+            if output_path:
+                os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                with open(output_path, 'wb') as f:
+                    f.write(response.content)
+                print(f"✅ Diagram saved to {output_path}")
+            return response.content
         else:
             print(f"❌ mermaid.ink error: HTTP {response.status_code}")
-            return False
-            
+            return None
     except Exception as e:
         print(f"❌ Connection error: {e}")
-        return False
+        return None
 
 
-def update_readme(image_path="assets/architecture_diagram.png", readme_path="README.md"):
-    """Step 5: Ensures README.md contains a reference to the hero image."""
-    print("📝 Step 5: Updating README.md...")
+def update_readme_content(original_content, image_url="assets/architecture_diagram.png"):
+    """
+    Step 5: Returns the updated README content as a string.
+    Does NOT write to file.
+    """
+    print("📝 Step 5: Preparing README update...")
     
-    image_line = f"![Architecture]({image_path})"
+    image_line = f"![Architecture]({image_url})"
     
-    if not os.path.exists(readme_path):
-        print(f"   README.md not found, creating new one...")
-        with open(readme_path, 'w', encoding='utf-8') as f:
-            f.write(f"# Project\n\n{image_line}\n")
-        print(f"✅ Created README.md with hero image")
-        return True
+    if not original_content:
+        # Create new content if empty
+        return f"# Project\n\n{image_line}\n"
     
-    with open(readme_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
-    if image_line in content:
+    if image_line in original_content:
         print("   README already contains hero image reference")
-        return True
+        return original_content
     
-    pattern = r'!\[.*?\]\(assets/architecture_diagram\.png\)'
-    if re.search(pattern, content):
-        content = re.sub(pattern, image_line, content)
+    # Regex to find existing architecture image (handling diverse paths/filenames is tricky, assuming standard for now)
+    # or just checking if our specific image is there.
+    # We will look for a similar pattern to replace, or insert at top.
+    
+    pattern = r'!\[.*?\]\(.*architecture_diagram\.png\)'
+    if re.search(pattern, original_content):
+        new_content = re.sub(pattern, image_line, original_content)
         print("   Updated existing architecture image reference")
-    else:
-        lines = content.split('\n')
-        insert_index = 0
-        
-        for i, line in enumerate(lines):
-            if line.startswith('#'):
-                for j in range(i + 1, min(i + 5, len(lines))):
+        return new_content
+    
+    # Insert Logic
+    lines = original_content.split('\n')
+    insert_index = 0
+    
+    # Try to insert after title
+    for i, line in enumerate(lines):
+        if line.startswith('# '):
+            # Found title, look for first empty line after it to insert details
+            # But usually we want it prominent, maybe right after title
+            # Let's try to put it after the first paragraph or header
+             for j in range(i + 1, min(i + 5, len(lines))):
                     if lines[j].strip() == '':
                         insert_index = j + 1
                         break
                     elif not lines[j].startswith('#') and lines[j].strip():
+                         # Found text, maybe insert after this block?
+                         # Let's stick to the previous logic: after first header, before next header or empty space
                         insert_index = j + 1
-                break
-        
-        if insert_index == 0:
-            insert_index = 2
-        
-        lines.insert(insert_index, '')
-        lines.insert(insert_index + 1, image_line)
-        lines.insert(insert_index + 2, '')
-        content = '\n'.join(lines)
-        print("   Added hero image reference to README")
+             break
     
-    with open(readme_path, 'w', encoding='utf-8') as f:
-        f.write(content)
-    
-    print("✅ README.md updated")
-    return True
+    if insert_index == 0:
+         # Fallback: Insert at top if no header found (unlikely) or just after start
+         insert_index = 2 if len(lines) >= 2 else len(lines)
 
-
-def main():
-    """Main pipeline execution."""
-    parser = argparse.ArgumentParser(
-        description="Repo-Artist: Generate architecture hero images",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-    python scripts/repo_artist.py                         # Use cached architecture + image
-    python scripts/repo_artist.py --refresh-architecture  # Force new LLM analysis
-    python scripts/repo_artist.py --force-image           # Regenerate image from cache
-    python scripts/repo_artist.py --hero-style "minimal"  # Custom style variation
-    python scripts/repo_artist.py --mode mermaid          # Use mermaid diagram fallback
-
-Environment Variables:
-    GEMINI_API_KEY      - Required for architecture analysis
-    ARCH_MODEL_NAME     - LLM model to use (default: gemini-2.5-flash)
-        """
-    )
-    parser.add_argument(
-        "--mode", "-m",
-        choices=["image", "mermaid"],
-        default="image",
-        help="Generation mode: 'image' uses Pollinations.ai, 'mermaid' uses mermaid.ink (default: image)"
-    )
-    parser.add_argument(
-        "--root", "-r",
-        default=".",
-        help="Root directory of the repository to analyze (default: current directory)"
-    )
-    parser.add_argument(
-        "--output", "-o",
-        default=OUTPUT_PATH,
-        help=f"Output path for generated image (default: {OUTPUT_PATH})"
-    )
-    parser.add_argument(
-        "--skip-readme",
-        action="store_true",
-        help="Skip updating README.md"
-    )
-    parser.add_argument(
-        "--refresh-architecture",
-        action="store_true",
-        help="Force new LLM analysis, ignoring cached architecture"
-    )
-    parser.add_argument(
-        "--force-image",
-        action="store_true",
-        help="Regenerate hero image even if one already exists"
-    )
-    parser.add_argument(
-        "--hero-style",
-        type=str,
-        default=None,
-        help="Optional style variation to append to image prompt (e.g. 'more minimal', 'more neon')"
-    )
+    lines.insert(insert_index, '')
+    lines.insert(insert_index + 1, image_line)
+    lines.insert(insert_index + 2, '')
     
-    args = parser.parse_args()
-    
-    # Also check environment variable overrides
-    refresh_arch = args.refresh_architecture or os.getenv("REFRESH_ARCHITECTURE", "").lower() == "true"
-    force_image = args.force_image or os.getenv("FORCE_IMAGE", "").lower() == "true"
-    
-    print("\n" + "=" * 60)
-    print("🚀 Repo-Artist Pipeline Starting...")
-    print(f"   Mode: {args.mode}")
-    print(f"   Root: {os.path.abspath(args.root)}")
-    print(f"   Refresh Architecture: {refresh_arch}")
-    print(f"   Force Image: {force_image}")
-    if args.hero_style:
-        print(f"   Hero Style: {args.hero_style}")
-    print("=" * 60 + "\n")
-    
-    # Check if image already exists and we don't need to regenerate
-    if not force_image and os.path.exists(args.output):
-        print(f"📦 Image already exists at {args.output}")
-        print("   Use --force-image to regenerate")
-        
-        # Still update README if needed
-        if not args.skip_readme:
-            update_readme(args.output)
-        
-        print("\n" + "=" * 60)
-        print("✅ Repo-Artist Pipeline Complete (using cached image)")
-        print("=" * 60 + "\n")
-        return
-    
-    # Step 1: Harvest repository structure
-    structure = get_code_context(args.root)
-    if not structure:
-        print("❌ No files found to analyze.")
-        sys.exit(1)
-    
-    print()
-    
-    # Step 2: Analyze architecture with Gemini (with caching)
-    architecture = analyze_architecture(structure, force_refresh=refresh_arch)
-    if not architecture:
-        print("❌ Failed to analyze architecture.")
-        sys.exit(1)
-    
-    print()
-    
-    # Step 3 & 4: Generate image based on mode
-    success = False
-    if args.mode == "image":
-        prompt = build_hero_prompt(architecture, hero_style=args.hero_style)
-        if prompt:
-            print()
-            success = generate_hero_image_pollinations(prompt, args.output)
-            
-            # Fallback to mermaid if image generation fails
-            if not success:
-                print("\n⚠️ Image generation failed, falling back to mermaid mode...")
-                success = generate_hero_image_mermaid(architecture, args.output)
-    else:
-        success = generate_hero_image_mermaid(architecture, args.output)
-    
-    if not success:
-        print("❌ Failed to generate hero image.")
-        sys.exit(1)
-    
-    print()
-    
-    # Step 5: Update README
-    if not args.skip_readme:
-        update_readme(args.output)
-    
-    print()
-    print("=" * 60)
-    print("✅ Repo-Artist Pipeline Complete!")
-    print(f"   Output: {args.output}")
-    print("=" * 60 + "\n")
-
-
-if __name__ == "__main__":
-    main()
+    print("   Added hero image reference to README")
+    return '\n'.join(lines)

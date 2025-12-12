@@ -1,10 +1,13 @@
 # Repo-Artist
 
+
+![Architecture](assets/architecture_diagram.png)
+
 **Automated Architecture Hero Image Generator for GitHub Repositories.**
 
 Repo-Artist analyzes your codebase using **Google Gemini** to understand your architecture, then generates a high-end, sci-fi isometric "Hero Image" for your project.
 
-![Architecture](assets/architecture_diagram.png)
+![Architecture](assetsrchitecture_diagram.png)
 
 ## Features
 
@@ -21,47 +24,68 @@ Repo-Artist analyzes your codebase using **Google Gemini** to understand your ar
     ```bash
     pip install -r requirements.txt
     ```
-3. Set up Environment Variables:
-    - Copy `.env.example` to `.env`:
-      ```bash
-      cp .env.example .env
-      ```
-    - Fill in your keys in `.env`:
-      - `GEMINI_API_KEY`: Get from [Google AI Studio](https://aistudio.google.com/app/apikey).
-      - `ARCH_MODEL_NAME` (optional): Model to use (default: `gemini-2.5-flash`).
 
-## Usage
+## Web App & Setup
 
-### Local Trigger (Recommended)
+The easiest way to get started is the **Setup Wizard**, which configuring your keys and launches the Web UI.
 
-Use the wrapper script instead of `git push`:
+1. **Run the Setup Wizard**:
+   ```bash
+   python scripts/repo_artist_setup.py
+   ```
+2. **Follow the Prompts**:
+   - It will guide you to create a **GitHub OAuth App** (required for the web interface).
+   - Enter your Client ID, Client Secret, and Gemini API Key.
+   - It will automatically save them to `.env` and start the server.
+
+3. **Use the Web App**:
+   - **Preview**: Enter a Repo URL to see the architecture hero image.
+   - **Apply**: Click to commit the image and README update directly to GitHub.
+
+### GUI Preview
+
+![Repo-Artist UI](assets/app_screenshot.png)
+
+
+## CLI Usage (Recommended)
+
+The easiest way to use Repo-Artist is via the CLI. There is no need to manually edit files.
 
 ```bash
-python smart_push.py origin main
+# 1. Generate Architecture Diagram
+python scripts/cli.py generate
+
+# If GEMINI_API_KEY is missing, the tool will ask for it interactively
+# and offer to save it to your .env file.
 ```
 
-If significant changes are detected, it will offer options:
-1. **Full refresh** – New architecture analysis + new image
-2. **Reuse cached** – Regenerate image only from cached architecture
-
-### Manual Generation
+### Options
 
 ```bash
-# Use cached architecture and image (if exists)
-python scripts/repo_artist.py
+# Point to a different repo
+python scripts/cli.py generate --path /path/to/other/repo
 
-# Force new architecture analysis
-python scripts/repo_artist.py --refresh-architecture
+# Use Mermaid diagrams (no image generation, just structure)
+python scripts/cli.py generate --mode mermaid
 
-# Force regenerate image from cached architecture
-python scripts/repo_artist.py --force-image
+# Force refresh of the architecture analysis (ignore cache)
+python scripts/cli.py generate --refresh-architecture
 
 # Custom style variation
-python scripts/repo_artist.py --force-image --hero-style "more minimal"
-
-# Use mermaid fallback instead of AI image
-python scripts/repo_artist.py --mode mermaid
+python scripts/cli.py generate --hero-style "cyberpunk neon"
 ```
+
+### 🤝 GitHub Actions / CI (Advanced)
+
+To enable automatic updates on `git push`, set up the GitHub Action:
+
+```bash
+python scripts/cli.py setup-ci
+```
+
+This command will:
+1. Create `.github/workflows/generate_art.yml`
+2. Automatically detect `gh` CLI and offer to upload your `GEMINI_API_KEY` to GitHub Secrets.
 
 ## Configuration
 
@@ -71,8 +95,6 @@ python scripts/repo_artist.py --mode mermaid
 |----------|----------|---------|-------------|
 | `GEMINI_API_KEY` | Yes | - | Google AI API key for architecture analysis |
 | `ARCH_MODEL_NAME` | No | `gemini-2.5-flash` | Gemini model to use for analysis |
-| `REFRESH_ARCHITECTURE` | No | `false` | Force new LLM analysis |
-| `FORCE_IMAGE` | No | `false` | Force regenerate image |
 
 ### Caching
 
@@ -81,32 +103,15 @@ python scripts/repo_artist.py --mode mermaid
 
 To bypass caching:
 - `--refresh-architecture` – Forces new LLM call, overwrites `architecture.json`
-- `--force-image` – Forces new image generation, overwrites `architecture_diagram.png`
 
-### CLI Flags
+## Advanced Usage
 
-| Flag | Description |
-|------|-------------|
-| `--mode image\|mermaid` | Generation mode (default: image) |
-| `--root DIR` | Repository root directory |
-| `--output PATH` | Output image path |
-| `--refresh-architecture` | Force new LLM analysis |
-| `--force-image` | Force image regeneration |
-| `--hero-style STRING` | Custom style variation (e.g., "more neon") |
-| `--skip-readme` | Skip README.md update |
+### Local Trigger via Smart Push
 
-## CI/CD Workflow
+Use the wrapper script to conditionally trigger generation before pushing:
 
-The `.github/workflows/generate_art.yml` pipeline triggers on:
-- Commits containing `[GEN_ART]` in the message
-- Manual workflow dispatch with configurable options
+```bash
+python smart_push.py origin main
+```
 
-It will:
-1. Analyze the code (or use cache)
-2. Generate the hero image
-3. Commit `assets/architecture_diagram.png` and `assets/architecture.json`
-
-### GitHub Secrets Required
-
-- `GEMINI_API_KEY` – For architecture analysis
-- `ARCH_MODEL_NAME` (optional) – Override the default model
+If significant changes are detected, it will offer options to refresh the art before pushing.
