@@ -10,8 +10,8 @@ CLI Tool with subcommands:
     setup-ci: Create GitHub Actions workflow
 
 Usage:
-    python scripts/repo_artist.py generate [--mode image|mermaid] [--path DIR] [--api-key KEY]
-    python scripts/repo_artist.py setup-ci
+    python scripts/cli.py generate [--mode image|mermaid] [--path DIR] [--api-key KEY]
+    python scripts/cli.py setup-ci
 """
 
 import os
@@ -21,10 +21,6 @@ import shutil
 import subprocess
 import re
 from dotenv import load_dotenv
-
-# Add the project root to sys.path so we can import repo_artist
-# Assuming script is in /scripts/ and repo_artist package is in /
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from repo_artist.core import (
     get_code_context,
