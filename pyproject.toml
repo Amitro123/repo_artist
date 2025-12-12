@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "repo_artist"
+version = "0.1.0"
+description = "Automated Architecture Hero Image Generator for GitHub Repositories"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests",
+    "google-generativeai",
+    "python-dotenv",
+    "rich",
+    "fastapi",
+    "uvicorn",
+]
+
+[tool.setuptools]
+packages = ["repo_artist", "scripts", "web"]
+
+[project.scripts]
+repo-artist = "scripts.cli:main"
+repo-artist-setup = "scripts.repo_artist_setup:main"
