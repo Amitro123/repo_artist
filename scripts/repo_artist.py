@@ -232,13 +232,33 @@ def build_hero_prompt(architecture, hero_style=None):
     components = architecture.get("components", [])[:7]
     connections = architecture.get("connections", [])[:7]
     
+    # Visual descriptors for different component types
+    type_visuals = {
+        "frontend": "a floating glass interface screen with UI elements",
+        "backend": "a server rack module with data streams",
+        "api": "a server rack module with data streams",
+        "database": "a cylindrical data storage unit with holographic rings",
+        "worker": "a processing core sending signals outward",
+        "cli": "a terminal window and code icons",
+        "external_service": "an external service tile or cloud endpoint icon",
+        "ai_model": "a glowing neural network brain visualization",
+        "queue": "a floating data buffer conduit",
+        "cache": "a glowing crystal memory bank",
+        "storage": "a heavy metallic data vault",
+        "other": "a modular tech block"
+    }
+
     # Build component platform descriptions
     platform_lines = []
     for i, comp in enumerate(components, 1):
         label = comp.get("label", f"Component {i}")
-        comp_type = comp.get("type", "other")
+        comp_type = comp.get("type", "other").lower()
         role = comp.get("role", "Handles system functionality")
-        platform_lines.append(f'Platform {i}: Label "{label}". Type: {comp_type}. Role: {role}')
+        
+        # Determine visual representation
+        visual = type_visuals.get(comp_type, type_visuals["other"])
+        
+        platform_lines.append(f'Platform {i} labeled "{label}" (type: {comp_type}) – shows {visual}, representing {role}.')
     
     # Build connection arrow descriptions
     id_to_label = {c["id"]: c["label"] for c in components}
@@ -247,32 +267,24 @@ def build_hero_prompt(architecture, hero_style=None):
         from_label = id_to_label.get(conn["from"], conn["from"])
         to_label = id_to_label.get(conn["to"], conn["to"])
         conn_label = conn.get("label", "data flow")
-        arrow_lines.append(f'Arrow from "{from_label}" to "{to_label}": "{conn_label}"')
+        arrow_lines.append(f'An arrow from "{from_label}" to "{to_label}" labeled "{conn_label}".')
     
-    # Compose full prompt using exact style template
-    prompt = f"""A high-end sci-fi isometric illustration of a software architecture, showing {len(components)} floating 3D platforms connected by glowing arrows.
+    # Compose full prompt using refined sci-fi flow diagram structure
+    prompt = f"""A high-end sci-fi isometric flow diagram of a {system_summary[:60]}..., with {len(components)} clearly labeled glowing 3D platforms connected by arrows.
 
 System overview: {system_summary}
 
-Components as floating platforms:
+Platforms:
 {chr(10).join(platform_lines)}
 
-Data flows between platforms:
+Data flow:
 {chr(10).join(arrow_lines)}
 
-Visual style requirements:
-- Professional futuristic dark UI background with deep blue/purple tones
-- Isometric 3D perspective with floating glass/metallic platforms
-- Neon blue and magenta accent lighting with subtle glow effects
-- Clear, readable English labels on or near each platform
-- Glowing directional arrows showing data/control flow between components
-- Wide horizontal banner composition (16:9 aspect ratio)
-- Clean and non-cartoonish, suitable as a GitHub README hero image
-- No random abstract shapes, crystals, or unrelated elements"""
+Visual style: professional futuristic dark UI, isometric 3D glass platforms, neon blue and magenta edges, large, crisp English labels on each platform, clear arrows with short labels, wide horizontal layout suitable for a README banner, no random text, no extra shapes, no unreadable scribbles."""
     
     # Append custom style variation if provided
     if hero_style:
-        prompt += f"\n- Additional style: {hero_style}"
+        prompt += f" {hero_style}"
         print(f"   Added style variation: {hero_style}")
     
     print(f"✅ Hero prompt built ({len(prompt)} chars)")
