@@ -5,9 +5,7 @@ import sys
 import os
 import tempfile
 import json
-
-sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'scripts'))
-import repo_artist
+from repo_artist import core as repo_artist
 
 
 class TestRepoArtist(unittest.TestCase):
@@ -77,9 +75,27 @@ class TestRepoArtist(unittest.TestCase):
             loaded = repo_artist.load_cached_architecture(cache_path)
             self.assertEqual(loaded["system_summary"], "Test")
 
-    def test_generate_hero_image_exists(self):
-        """Test that generate_hero_image function exists."""
-        self.assertTrue(callable(repo_artist.generate_hero_image))
+    def test_generate_hero_image_pollinations_exists(self):
+        """Test that generate_hero_image_pollinations function exists."""
+        self.assertTrue(callable(repo_artist.generate_hero_image_pollinations))
+
+    @patch('repo_artist.core.requests.get')
+    def test_generate_hero_image_pollinations_success(self, mock_get):
+        """Test generating hero image via Pollinations."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = b"fake_image_content"
+        mock_get.return_value = mock_response
+
+        prompt = "test prompt"
+        result = repo_artist.generate_hero_image_pollinations(prompt)
+
+        self.assertEqual(result, b"fake_image_content")
+        mock_get.assert_called()
+        # Verify URL structure
+        args, _ = mock_get.call_args
+        self.assertIn("pollinations.ai", args[0])
+        self.assertIn("test%20prompt", args[0])
 
 
 if __name__ == '__main__':
