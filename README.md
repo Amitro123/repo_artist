@@ -4,7 +4,7 @@
 
 Repo-Artist analyzes your codebase using **Google Gemini** to understand your architecture, then generates a high-end, sci-fi isometric "Hero Image" for your project.
 
-![Repo-Artist Architecture](assets/architecture_diagram.png)
+![Architecture](assets/architecture_diagram.png)
 
 ## Features
 
