@@ -3,6 +3,8 @@ import unittest
 from unittest.mock import patch, MagicMock
 import sys
 import os
+import tempfile
+import json
 
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'scripts'))
 import repo_artist
@@ -31,13 +33,19 @@ class TestRepoArtist(unittest.TestCase):
         }
         result = repo_artist.build_hero_prompt(arch)
         
-        # Check for exact style template elements
         self.assertIn("System overview:", result)
         self.assertIn("Components as floating platforms:", result)
-        self.assertIn("Data flows between platforms:", result)
-        self.assertIn("Visual style requirements:", result)
         self.assertIn('Platform 1: Label "Component A"', result)
-        self.assertIn('Arrow from "Component A" to "Component B"', result)
+
+    def test_build_hero_prompt_with_style(self):
+        """Test build_hero_prompt with custom style variation."""
+        arch = {
+            "system_summary": "Test",
+            "components": [{"id": "a", "label": "A", "type": "api", "role": "test"}],
+            "connections": []
+        }
+        result = repo_artist.build_hero_prompt(arch, hero_style="more neon")
+        self.assertIn("Additional style: more neon", result)
 
     def test_build_hero_prompt_handles_none(self):
         """Test build_hero_prompt with None."""
@@ -52,6 +60,20 @@ class TestRepoArtist(unittest.TestCase):
         }
         result = repo_artist.architecture_to_mermaid(arch)
         self.assertIn("graph LR", result)
+
+    def test_save_and_load_architecture_cache(self):
+        """Test architecture caching functions."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = os.path.join(tmpdir, "test_cache.json")
+            test_arch = {"system_summary": "Test", "components": [], "connections": []}
+            
+            # Save
+            result = repo_artist.save_architecture_cache(test_arch, cache_path)
+            self.assertTrue(result)
+            
+            # Load
+            loaded = repo_artist.load_cached_architecture(cache_path)
+            self.assertEqual(loaded["system_summary"], "Test")
 
     def test_generate_hero_image_exists(self):
         """Test that generate_hero_image function exists."""

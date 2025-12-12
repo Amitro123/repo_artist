@@ -5,6 +5,17 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      refresh_architecture:
+        description: 'Force refresh architecture analysis'
+        required: false
+        default: false
+        type: boolean
+      force_image:
+        description: 'Force regenerate hero image'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   generate-art:
@@ -28,15 +39,43 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Determine flags from commit message
+        id: flags
+        run: |
+          # Check if commit message contains refresh indicators
+          if [[ "${{ github.event.head_commit.message }}" == *"Refresh architecture"* ]]; then
+            echo "refresh_arch=true" >> $GITHUB_OUTPUT
+          else
+            echo "refresh_arch=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # For workflow_dispatch, use the input values
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "refresh_arch=${{ github.event.inputs.refresh_architecture }}" >> $GITHUB_OUTPUT
+            echo "force_image=${{ github.event.inputs.force_image }}" >> $GITHUB_OUTPUT
+          else
+            echo "force_image=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Generate architecture hero image
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python scripts/repo_artist.py --mode image
+          ARCH_MODEL_NAME: ${{ secrets.ARCH_MODEL_NAME || 'gemini-2.5-flash' }}
+        run: |
+          FLAGS=""
+          if [[ "${{ steps.flags.outputs.refresh_arch }}" == "true" ]]; then
+            FLAGS="$FLAGS --refresh-architecture"
+          fi
+          if [[ "${{ steps.flags.outputs.force_image }}" == "true" ]]; then
+            FLAGS="$FLAGS --force-image"
+          fi
+          echo "Running: python scripts/repo_artist.py $FLAGS"
+          python scripts/repo_artist.py $FLAGS
 
       - name: Commit and Push Art
         run: |
           git config --global user.name "Repo-Artist Bot"
           git config --global user.email "bot@repo-artist.com"
-          git add assets/architecture_diagram.png README.md
+          git add assets/architecture_diagram.png assets/architecture.json README.md
           git diff --staged --quiet || git commit -m "🎨 Auto-generated architecture hero image"
           git push
