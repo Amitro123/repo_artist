@@ -87,11 +87,64 @@ def save_architecture_cache(architecture, cache_path):
         return False
 
 
-def analyze_architecture(code_context, api_key, model_name=DEFAULT_MODEL, force_refresh=False, cache_path=None):
+def load_architecture_json(repo_path):
+    """
+    Loads architecture from repo-artist-architecture.json in the repository root.
+    Returns dict if found and valid, None otherwise.
+    """
+    json_path = os.path.join(repo_path, "repo-artist-architecture.json")
+    
+    if not os.path.exists(json_path):
+        return None
+    
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            architecture = json.load(f)
+        print(f"📥 Loaded architecture from {json_path}")
+        return architecture
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"⚠️ Failed to load repo architecture JSON: {e}")
+        return None
+
+
+def save_architecture_json(architecture, repo_path):
+    """
+    Saves architecture to repo-artist-architecture.json in the repository root.
+    Creates the file if it doesn't exist.
+    """
+    json_path = os.path.join(repo_path, "repo-artist-architecture.json")
+    
+    try:
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(architecture, f, indent=2)
+        print(f"💾 Saved architecture to {json_path}")
+        return True
+    except IOError as e:
+        print(f"⚠️ Failed to save repo architecture JSON: {e}")
+        return False
+
+
+def analyze_architecture(code_context, api_key, model_name=DEFAULT_MODEL, force_refresh=False, cache_path=None, force_reanalyze=False, repo_path=None):
     """
     Step 2: Analyzes code structure and returns JSON architecture via Gemini.
+    
+    Args:
+        code_context: File structure from get_code_context()
+        api_key: Gemini API key
+        model_name: Gemini model to use
+        force_refresh: Ignore local cache (assets/architecture.json)
+        cache_path: Path to local cache file
+        force_reanalyze: Ignore persistent repo JSON (repo-artist-architecture.json)
+        repo_path: Path to repository root for persistent JSON
     """
-    # Check cache first (unless force refresh)
+    # Check persistent repo JSON first (unless force_reanalyze)
+    if not force_reanalyze and repo_path:
+        repo_json = load_architecture_json(repo_path)
+        if repo_json:
+            print("✅ Using existing architecture from repo-artist-architecture.json")
+            return repo_json
+    
+    # Check local cache second (unless force refresh)
     if not force_refresh and cache_path:
         cached = load_cached_architecture(cache_path)
         if cached:
@@ -166,6 +219,10 @@ Now analyze the following repository file list and return ONLY the JSON object:
         # Save to cache
         if cache_path:
             save_architecture_cache(architecture, cache_path)
+        
+        # Save to persistent repo JSON
+        if repo_path:
+            save_architecture_json(architecture, repo_path)
         
         return architecture
         

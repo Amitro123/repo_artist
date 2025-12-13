@@ -20,7 +20,9 @@ Repo-Artist is an automation tool that automatically generates a "Hero Image" fo
 - **Purpose**: Pure business logic library, reusable by CLI and Web App.
 - **Modules**:
     - `get_code_context`: Harvests file structure.
-    - `analyze_architecture`: Gemini-powered architecture inference.
+    - `analyze_architecture`: Gemini-powered architecture inference with persistent JSON caching.
+    - `save_architecture_json`: Saves architecture to `repo-artist-architecture.json`.
+    - `load_architecture_json`: Loads architecture from `repo-artist-architecture.json`.
     - `build_hero_prompt`: Creates visual prompts.
     - `generate_hero_image_*`: Handles image generation providers.
     - `update_readme_content`: Generates updated README string.
@@ -45,6 +47,8 @@ Repo-Artist is an automation tool that automatically generates a "Hero Image" fo
     - **Features**:
         - **Configuration**: Interactive inputs for Repo URL & Gemini Key.
         - **Preview**: Visual Hero Image + Markdown Render + Diff View.
+        - **Refinement**: Natural language image editing ("Make the database red", "Add cloud icons").
+        - **Caching Control**: Checkbox to force re-analysis (ignore cached architecture JSON).
         - **Apply**: One-click commit to GitHub via REST API.
 
 ### 4. Local Trigger (`smart_push.py`)

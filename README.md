@@ -12,6 +12,8 @@ Repo-Artist analyzes your codebase using **Google Gemini** to understand your ar
 ## Features
 
 - **AI-Powered Analysis**: Uses Gemini to analyze your code structure and infer architecture components.
+- **Interactive Refinement**: Modify generated images using natural language (e.g., "Make the database red", "Add cloud icons").
+- **Persistent Architecture Caching**: Saves architecture analysis to `repo-artist-architecture.json` for faster subsequent runs.
 - **Smart Caching**: Architecture analysis is cached to avoid unnecessary LLM calls.
 - **Configurable Model**: Choose which Gemini model to use via environment variable.
 - **Smart Detection**: Only generates new art when significant changes are detected (> 3 files or > 50 lines).
@@ -40,6 +42,7 @@ The easiest way to get started is the **Setup Wizard**, which configuring your k
 
 3. **Use the Web App**:
    - **Preview**: Enter a Repo URL to see the architecture hero image.
+   - **Refine**: Use natural language to modify the image ("Make it more colorful", "Add cloud icons").
    - **Apply**: Click to commit the image and README update directly to GitHub.
 
 ### GUI Preview
@@ -98,11 +101,13 @@ This command will:
 
 ### Caching
 
-- **Architecture cache**: `assets/architecture.json` – Stores the analyzed architecture JSON
+- **Persistent Architecture JSON**: `repo-artist-architecture.json` – Saved in repository root, reused across runs
+- **Local Architecture cache**: `assets/architecture.json` – Stores the analyzed architecture JSON
 - **Image cache**: `assets/architecture_diagram.png` – Generated hero image
 
 To bypass caching:
-- `--refresh-architecture` – Forces new LLM call, overwrites `architecture.json`
+- **Web UI**: Check "Force re-analyze (ignore cached architecture)" checkbox
+- **CLI**: `--refresh-architecture` – Forces new LLM call, overwrites `architecture.json`
 
 ## Advanced Usage
 

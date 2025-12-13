@@ -22,6 +22,55 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add request logging middleware
+import time
+import sys
+from datetime import datetime
+from starlette.middleware.base import BaseHTTPMiddleware
+
+# Create log file
+LOG_FILE = os.path.join(os.path.dirname(__file__), "requests.log")
+
+def log_to_file(message):
+    """Write to both stdout and file"""
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    full_message = f"{timestamp} - {message}"
+    print(full_message, flush=True, file=sys.stdout)
+    try:
+        with open(LOG_FILE, "a") as f:
+            f.write(full_message + "\n")
+    except:
+        pass
+
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        
+        # Log incoming request
+        log_to_file(f"→ {request.method} {request.url.path}")
+        
+        try:
+            response = await call_next(request)
+            
+            # Log response
+            process_time = time.time() - start_time
+            log_to_file(f"← {request.method} {request.url.path} - {response.status_code} ({process_time:.2f}s)")
+            
+            return response
+        except Exception as e:
+            log_to_file(f"✗ {request.method} {request.url.path} - ERROR: {str(e)}")
+            raise
+
+# Add the logging middleware
+app.add_middleware(LoggingMiddleware)
+
+# Startup event to confirm middleware is loaded
+@app.on_event("startup")
+async def startup_event():
+    log_to_file("="*80)
+    log_to_file("🎯 REQUEST LOGGING ENABLED - Logs will appear below AND in requests.log")
+    log_to_file("="*80)
+
 app.include_router(api.router, prefix="/api")
 
 # Serve React App

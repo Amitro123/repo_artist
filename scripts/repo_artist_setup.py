@@ -126,7 +126,7 @@ def final_actions():
         console.print("[bold cyan]🚀 Initializing Core Systems...[/bold cyan]")
         console.print("[dim]Press Ctrl+C to abort[/dim]\n")
         
-        cmd = [sys.executable, "-m", "uvicorn", "web.backend.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+        cmd = [sys.executable, "-m", "uvicorn", "web.backend.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
         
         try:
              import threading
