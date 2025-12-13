@@ -34,6 +34,7 @@ class PreviewRequest(BaseModel):
     repo_url: str
     gemini_api_key: Optional[str] = None # Optional now
     branch: Optional[str] = None
+    force_reanalyze: bool = False  # NEW: Ignore cached architecture JSON
 
 class ApplyRequest(BaseModel):
     repo_url: str
@@ -42,9 +43,17 @@ class ApplyRequest(BaseModel):
     branch: Optional[str] = None
     commit_message: str = "🤖 [Repo-Artist] Add architecture hero image"
 
+class RefineRequest(BaseModel):
+    repo_url: str
+    edit_prompt: str  # e.g., "Make the database red"
+    gemini_api_key: Optional[str] = None
+    original_prompt: Optional[str] = None  # If available from cache
+    force_reanalyze: bool = False  # NEW: Ignore cached architecture JSON
+
 @router.get("/config")
 def get_config():
     """Returns frontend configuration flags"""
+    print("[API] /config endpoint called", flush=True)
     has_key = bool(os.getenv("GEMINI_API_KEY"))
     return {"has_env_key": has_key}
 
@@ -56,6 +65,8 @@ async def preview_architecture(req: PreviewRequest):
     3. Generate image
     4. Generate README preview
     """
+    print(f"[API] /preview endpoint called - repo: {req.repo_url}", flush=True)
+    
     # Fallback to server-side key
     api_key = req.gemini_api_key or os.getenv("GEMINI_API_KEY")
     
@@ -83,7 +94,9 @@ async def preview_architecture(req: PreviewRequest):
         architecture = analyze_architecture(
             structure, 
             api_key=api_key,
-            force_refresh=True 
+            force_refresh=True,
+            force_reanalyze=req.force_reanalyze,  # NEW
+            repo_path=temp_dir  # NEW: Enable persistent JSON caching
         )
         
         if not architecture:
@@ -195,3 +208,79 @@ async def apply_changes(req: ApplyRequest, authorization: Optional[str] = Header
     
     commit_url = resp.get("commit", {}).get("html_url")
     return {"status": "success", "commit_url": commit_url}
+
+@router.post("/refine-image")
+async def refine_image(req: RefineRequest):
+    """
+    Refine an existing generated image using natural language.
+    Regenerates the image with an enhanced prompt.
+    """
+    print(f"[API] /refine-image endpoint called - edit: {req.edit_prompt}", flush=True)
+    
+    # Fallback to server-side key
+    api_key = req.gemini_api_key or os.getenv("GEMINI_API_KEY")
+    
+    if not api_key:
+        raise HTTPException(status_code=400, detail="Gemini API Key is required")
+    
+    temp_dir = tempfile.mkdtemp()
+    try:
+        # Clone repo to get architecture context
+        print(f"Cloning {req.repo_url} for refinement...")
+        try:
+            repo = git.Repo.clone_from(req.repo_url, temp_dir, depth=1, branch='main')
+        except Exception:
+            try:
+                repo = git.Repo.clone_from(req.repo_url, temp_dir, depth=1, branch='master')
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to clone repository: {str(e)}")
+        
+        # Get code context and architecture
+        print("Analyzing architecture...")
+        context = get_code_context(temp_dir)
+        architecture = analyze_architecture(
+            context, 
+            api_key, 
+            model=DEFAULT_MODEL,
+            force_reanalyze=req.force_reanalyze,  # NEW
+            repo_path=temp_dir  # NEW: Enable persistent JSON caching
+        )
+        
+        # Build original hero prompt
+        original_prompt = build_hero_prompt(architecture)
+        
+        # Enhance prompt with user's refinement
+        enhanced_prompt = f"{original_prompt}\n\nAdditional style requirements: {req.edit_prompt}"
+        
+        print(f"Generating refined image with prompt enhancement...")
+        print(f"Original prompt length: {len(original_prompt)} chars")
+        print(f"Enhanced prompt length: {len(enhanced_prompt)} chars")
+        
+        # Generate new image with enhanced prompt
+        image_bytes = generate_hero_image_pollinations(enhanced_prompt)
+        
+        if not image_bytes:
+            raise HTTPException(status_code=500, detail="Failed to generate refined image")
+        
+        # Save refined image
+        image_b64 = base64.b64encode(image_bytes).decode('utf-8')
+        
+        # Save to static directory
+        os.makedirs(STATIC_PREVIEWS_DIR, exist_ok=True)
+        filename = f"{uuid.uuid4()}.png"
+        file_path = os.path.join(STATIC_PREVIEWS_DIR, filename)
+        
+        with open(file_path, "wb") as f:
+            f.write(image_bytes)
+        
+        image_url = f"/static/previews/{filename}"
+        print(f"✅ Saved refined image to {file_path}")
+        
+        return {
+            "image_b64": image_b64,
+            "image_url": image_url,
+            "enhanced_prompt": enhanced_prompt
+        }
+        
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
