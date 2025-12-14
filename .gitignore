@@ -26,3 +26,6 @@ yarn-error.log
 .vite/
 web/frontend/dist/
 *.tsbuildinfo
+
+# GCP
+.gcp_key.json   

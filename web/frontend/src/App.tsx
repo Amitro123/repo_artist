@@ -26,7 +26,7 @@ function RepoArtistApp() {
     const [successLink, setSuccessLink] = useState<string | null>(null);
 
     const [preview, setPreview] = useState<PreviewResponse | null>(null);
-    const [activeTab, setActiveTab] = useState<'preview' | 'diff'>('preview');
+    const [activeTab, setActiveTab] = useState<'preview' | 'diff' | 'json'>('preview');
 
     // Refinement state
     const [refinePrompt, setRefinePrompt] = useState('');
@@ -42,8 +42,13 @@ function RepoArtistApp() {
 
         if (accessToken) {
             setToken(accessToken);
+            localStorage.setItem('gh_token', accessToken); // Persist token
             // Clean URL without reloading
             window.history.replaceState({}, document.title, window.location.pathname);
+        } else {
+            // Recover from localStorage
+            const stored = localStorage.getItem('gh_token');
+            if (stored) setToken(stored);
         }
 
         // 2. Fetch Config
@@ -134,7 +139,8 @@ function RepoArtistApp() {
                 body: JSON.stringify({
                     repo_url: repoUrl,
                     approved_readme: preview.new_readme,
-                    image_data_b64: preview.image_b64 // Send b64 as required by backend
+                    image_data_b64: preview.image_b64, // Send b64 as required by backend
+                    architecture_json: preview.architecture // Send architecture JSON for persistence
                 })
             });
 
@@ -314,16 +320,16 @@ function RepoArtistApp() {
                         )}
                     </div>
                 ) : (
-                    <div className="preview-box" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', padding: '20px', overflow: 'hidden' }}>
+                    <div className="preview-box" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', padding: '20px', overflow: 'auto', height: '100%' }}>
                         <img
                             src={preview.image_url || `data:image/png;base64,${preview.image_b64}`}
                             alt="Generated Architecture"
-                            style={{ maxWidth: '100%', borderRadius: '12px', border: '1px solid var(--glass-border)', boxShadow: '0 0 20px rgba(0,0,0,0.5)', flexShrink: 0 }}
+                            style={{ maxWidth: '100%', borderRadius: '12px', border: '1px solid var(--glass-border)', boxShadow: '0 0 20px rgba(0,0,0,0.5)', flexShrink: 0, marginBottom: '20px' }}
                         />
 
                         {/* Refine Image Section - Only show if API key is available */}
                         {hasEnvKey && (
-                            <div style={{ width: '100%', marginTop: '20px', padding: '16px', background: 'rgba(0, 243, 255, 0.05)', border: '1px solid rgba(0, 243, 255, 0.2)', borderRadius: '12px', flexShrink: 0 }}>
+                            <div style={{ width: '100%', marginBottom: '20px', padding: '16px', background: 'rgba(0, 243, 255, 0.05)', border: '1px solid rgba(0, 243, 255, 0.2)', borderRadius: '12px', flexShrink: 0 }}>
                                 <h3 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--neon-cyan)', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '1px' }}>
                                     ✨ Refine Image
                                 </h3>
@@ -368,36 +374,42 @@ function RepoArtistApp() {
                             </div>
                         )}
 
-                        <div style={{ width: '100%', marginTop: '20px', flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', minHeight: '300px', flexShrink: 0 }}>
                             <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', flexShrink: 0 }}>
                                 <button onClick={() => setActiveTab('preview')} style={{ padding: '8px 16px', background: activeTab === 'preview' ? 'rgba(255,255,255,0.1)' : 'transparent', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '6px', cursor: 'pointer' }}>Preview</button>
                                 <button onClick={() => setActiveTab('diff')} style={{ padding: '8px 16px', background: activeTab === 'diff' ? 'rgba(255,255,255,0.1)' : 'transparent', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '6px', cursor: 'pointer' }}>Code</button>
+                                <button onClick={() => setActiveTab('json')} style={{ padding: '8px 16px', background: activeTab === 'json' ? 'rgba(255,255,255,0.1)' : 'transparent', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '6px', cursor: 'pointer' }}>Architecture JSON</button>
 
                                 <button
                                     onClick={handleApply}
+                                    disabled={!token}
                                     style={{
                                         marginLeft: 'auto',
                                         padding: '8px 24px',
-                                        background: 'var(--neon-purple)',
+                                        background: !token ? 'rgba(128,128,128,0.3)' : 'var(--neon-purple)',
                                         border: 'none',
                                         borderRadius: '6px',
                                         color: 'white',
                                         fontWeight: 'bold',
-                                        cursor: 'pointer',
+                                        cursor: !token ? 'not-allowed' : 'pointer',
                                         position: 'relative',
                                         zIndex: 10,
                                         pointerEvents: 'auto'
                                     }}
                                 >
-                                    APPLY
+                                    {token ? "APPLY" : "Connect GitHub to Apply"}
                                 </button>
                             </div>
 
                             <div style={{ background: 'rgba(0,0,0,0.3)', padding: '20px', borderRadius: '12px', border: '1px solid var(--glass-border)', minHeight: '200px', color: '#eee', overflow: 'auto', flex: 1 }}>
                                 {activeTab === 'preview' ? (
                                     <div style={{ lineHeight: '1.6' }}><ReactMarkdown>{preview.new_readme}</ReactMarkdown></div>
-                                ) : (
+                                ) : activeTab === 'diff' ? (
                                     <pre style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{preview.new_readme}</pre>
+                                ) : (
+                                    <pre style={{ fontSize: '0.75rem', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                        {JSON.stringify(preview.architecture, null, 2)}
+                                    </pre>
                                 )}
                             </div>
                         </div>

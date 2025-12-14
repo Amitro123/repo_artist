@@ -113,9 +113,18 @@ def setup_gemini_api(current_vars):
             return {}
 
     console.print("Generate key at: [link=https://aistudio.google.com/app/apikey]https://aistudio.google.com/app/apikey[/link]")
+    console.print("[dim]Note: Input will be hidden for security (you won't see what you type)[/dim]")
     
-    api_key = Prompt.ask("[cyan]Gemini API Key[/cyan]", password=True)
-    return {"GEMINI_API_KEY": api_key}
+    # Ask if user wants to see the input
+    show_input = Confirm.ask("Show API key while typing? (less secure)", default=False)
+    
+    api_key = Prompt.ask("[cyan]Gemini API Key[/cyan]", password=not show_input)
+    
+    if not api_key or not api_key.strip():
+        console.print("[yellow]⚠️  No API key entered. Skipping...[/yellow]")
+        return {}
+    
+    return {"GEMINI_API_KEY": api_key.strip()}
 
 def final_actions():
     console.print("\n[bold cyan]>> PHASE 3: LAUNCH SEQUENCE[/bold cyan]")

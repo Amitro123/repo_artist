@@ -26,11 +26,12 @@ from repo_artist.core import (
     get_code_context,
     analyze_architecture,
     build_hero_prompt,
-    generate_hero_image_pollinations,
+    generate_hero_image,
     generate_hero_image_mermaid,
     update_readme_content,
     DEFAULT_MODEL
 )
+from repo_artist.config import RepoArtistConfig
 
 # Load environment variables
 load_dotenv()
@@ -133,19 +134,15 @@ def cmd_generate(args):
     success = False
     output_full_path = os.path.join(root_dir, args.output)
     
+    config = RepoArtistConfig.from_env(root_dir)
+    config.force_reanalyze = args.refresh_architecture
+    
     if args.mode == "image":
         prompt = build_hero_prompt(architecture, hero_style=args.hero_style)
         if prompt:
             print()
-            # generate function returns content if success, None if fail
-            content = generate_hero_image_pollinations(prompt, output_full_path)
+            content = generate_hero_image(prompt, architecture, output_full_path, config)
             success = content is not None
-            
-            # Fallback to mermaid
-            if not success:
-                print("\n⚠️ Image generation failed, falling back to mermaid mode...")
-                content = generate_hero_image_mermaid(architecture, output_full_path)
-                success = content is not None
     else:
         content = generate_hero_image_mermaid(architecture, output_full_path)
         success = content is not None

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Header
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any
+import json
 import git
 import sys
 import os
@@ -21,6 +22,7 @@ from repo_artist.core import (
     get_code_context,
     analyze_architecture,
     build_hero_prompt,
+    generate_hero_image,
     generate_hero_image_pollinations,
     generate_hero_image_mermaid,
     update_readme_content,
@@ -42,6 +44,7 @@ class ApplyRequest(BaseModel):
     image_data_b64: str
     branch: Optional[str] = None
     commit_message: str = "🤖 [Repo-Artist] Add architecture hero image"
+    architecture_json: Optional[Dict[str, Any]] = None
 
 class RefineRequest(BaseModel):
     repo_url: str
@@ -104,16 +107,22 @@ async def preview_architecture(req: PreviewRequest):
              
         prompt = build_hero_prompt(architecture)
         
-        # Generate Image (Pollinations)
-        image_content = generate_hero_image_pollinations(prompt)
+        # Generate Image (with caching support)
+        from repo_artist.config import RepoArtistConfig
+        config = RepoArtistConfig.from_env(repo_path=temp_dir)
+        config.force_reanalyze = req.force_reanalyze
+        
+        output_path = config.get_output_image_path(temp_dir)
+        
+        image_content = generate_hero_image(
+            prompt, 
+            architecture, 
+            output_path=output_path, 
+            config=config
+        )
         image_b64 = None
         if image_content:
              image_b64 = base64.b64encode(image_content).decode('utf-8')
-        else:
-            # Fallback
-             mermaid_content = generate_hero_image_mermaid(architecture)
-             if mermaid_content:
-                 image_b64 = base64.b64encode(mermaid_content).decode('utf-8')
         
         if not image_b64:
              raise HTTPException(status_code=500, detail="Failed to generate image")
@@ -206,6 +215,21 @@ async def apply_changes(req: ApplyRequest, authorization: Optional[str] = Header
         branch=target_branch
     )
     
+    # 3. Upload Architecture JSON (NEW)
+    if req.architecture_json:
+        try:
+            json_content = json.dumps(req.architecture_json, indent=2).encode('utf-8')
+            print(f"Uploading repo-artist-architecture.json to {owner}/{repo_name}")
+            await create_or_update_file(
+                owner, repo_name, "repo-artist-architecture.json", json_content,
+                message="[Repo-Artist] Update architecture JSON cache",
+                token=token,
+                branch=target_branch
+            )
+        except Exception as e:
+            print(f"⚠️ Failed to upload architecture JSON: {e}")
+            # Non-blocking error
+    
     commit_url = resp.get("commit", {}).get("html_url")
     return {"status": "success", "commit_url": commit_url}
 
@@ -241,7 +265,7 @@ async def refine_image(req: RefineRequest):
         architecture = analyze_architecture(
             context, 
             api_key, 
-            model=DEFAULT_MODEL,
+            model_name=DEFAULT_MODEL,
             force_reanalyze=req.force_reanalyze,  # NEW
             repo_path=temp_dir  # NEW: Enable persistent JSON caching
         )

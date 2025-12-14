@@ -116,5 +116,17 @@ async def auth_callback(code: str):
 async def health_check():
     return {"status": "ok"}
 
+@app.get("/favicon.ico")
+async def favicon():
+    """Return 204 No Content for favicon to avoid 404 logs"""
+    from fastapi.responses import Response
+    return Response(status_code=204)
+
+@app.get("/vite.svg")
+async def vite_svg():
+    """Return 204 No Content for vite.svg to avoid 404 logs"""
+    from fastapi.responses import Response
+    return Response(status_code=204)
+
 if __name__ == "__main__":
     uvicorn.run("web.backend.main:app", host="0.0.0.0", port=8000, reload=True)

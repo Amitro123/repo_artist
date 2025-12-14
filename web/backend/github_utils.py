@@ -41,7 +41,7 @@ async def create_or_update_file(
     if sha:
         data["sha"] = sha
         
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.put(
             f"{API_BASE}/repos/{owner}/{repo}/contents/{path}",
             headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"},

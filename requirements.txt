@@ -1,11 +1,12 @@
 google-generativeai
 requests
-Pillow
 python-dotenv
-huggingface_hub
 fastapi
 uvicorn
 httpx
 python-multipart
-GitPython
 rich
+GitPython
+
+# Optional: For Imagen 3 (Tier 1) support
+google-cloud-aiplatform
