@@ -1,7 +1,7 @@
 # Repo-Artist
 
 
-![Architecture](assets/architecture_diagram.png)
+![Architecture](./assets/architecture_diagram.png)
 
 **Automated Architecture Hero Image Generator for GitHub Repositories.**
 
