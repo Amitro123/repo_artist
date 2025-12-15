@@ -21,8 +21,9 @@ from .config import RepoArtistConfig
 
 
 # --- CONFIGURATION ---
-POLLINATIONS_URL = "https://image.pollinations.ai/prompt/{prompt}"
-MERMAID_INK_URL = "https://mermaid.ink/img/{encoded}"
+# Default URLs (can be overridden via config)
+DEFAULT_POLLINATIONS_URL = "https://image.pollinations.ai/prompt/{prompt}"
+DEFAULT_MERMAID_INK_URL = "https://mermaid.ink/img/{encoded}"
 DEFAULT_MODEL = "gemini-2.5-flash"
 
 # Setup logging
@@ -540,7 +541,8 @@ def generate_hero_image_imagen3(
 
 def generate_hero_image_pollinations(
     prompt: str, 
-    output_path: Optional[str] = None
+    output_path: Optional[str] = None,
+    config: Optional[RepoArtistConfig] = None
 ) -> Optional[bytes]:
     """
     Step 4 Tier 2: Generates image using Pollinations.ai free API.
@@ -548,17 +550,22 @@ def generate_hero_image_pollinations(
     Args:
         prompt: Image generation prompt
         output_path: Optional path to save image
+        config: Optional config for URL and resolution overrides
         
     Returns:
         Image bytes if successful, None otherwise
     """
+    if config is None:
+        config = RepoArtistConfig()
+    
     logger.info("Step 4 Tier 2: Generating image via Pollinations.ai...")
     
     # Enrich prompt for text legibility
     enhanced_prompt = prompt + " . perfect typography, sharp text, legible labels, high contrast text, white font, no spelling errors, text floating in front"
     
     encoded_prompt = urllib.parse.quote(enhanced_prompt, safe='')
-    url = POLLINATIONS_URL.format(prompt=encoded_prompt) + "?width=1280&height=720&model=flux&enhance=true"
+    base_url = config.pollinations_url.format(prompt=encoded_prompt)
+    url = f"{base_url}?width={config.pollinations_width}&height={config.pollinations_height}&model=flux&enhance=true"
     
     logger.debug("Requesting image from Pollinations...")
     
@@ -632,7 +639,8 @@ def architecture_to_mermaid(architecture: Dict[str, Any]) -> Optional[str]:
 
 def generate_hero_image_mermaid(
     architecture: Dict[str, Any], 
-    output_path: Optional[str] = None
+    output_path: Optional[str] = None,
+    config: Optional[RepoArtistConfig] = None
 ) -> Optional[bytes]:
     """
     Step 4 Tier 3: Fallback - generates diagram using mermaid.ink.
@@ -640,10 +648,14 @@ def generate_hero_image_mermaid(
     Args:
         architecture: Architecture dictionary
         output_path: Optional path to save image
+        config: Optional config for URL override
         
     Returns:
         Image bytes if successful, None otherwise
     """
+    if config is None:
+        config = RepoArtistConfig()
+    
     logger.info("Step 4 Tier 3: Generating diagram via mermaid.ink (fallback)...")
     
     mermaid_code = architecture_to_mermaid(architecture)
@@ -653,7 +665,7 @@ def generate_hero_image_mermaid(
     logger.debug(f"Mermaid code:\n{mermaid_code}\n")
     
     encoded = base64.b64encode(mermaid_code.encode('utf8')).decode('utf8')
-    url = f"https://mermaid.ink/img/{encoded}"
+    url = config.mermaid_ink_url.format(encoded=encoded)
     
     try:
         response = requests.get(url, timeout=30)
@@ -717,14 +729,15 @@ def generate_hero_image(
         return result
     
     # Try Tier 2: Pollinations
-    result = generate_hero_image_pollinations(prompt, output_path)
+    result = generate_hero_image_pollinations(prompt, output_path, config)
     if result:
         return result
     
     # Fallback to Tier 3: Mermaid
     logger.warning("All image generation tiers failed, falling back to Mermaid diagram")
-    result = generate_hero_image_mermaid(architecture, output_path)
+    result = generate_hero_image_mermaid(architecture, output_path, config)
     return result
+
 
 
 

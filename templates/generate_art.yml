@@ -48,7 +48,12 @@ jobs:
           REFRESH_ARCHITECTURE: ${{ inputs.force_refresh }}
           HERO_STYLE: ${{ inputs.hero_style }}
         run: |
-          python scripts/repo_artist.py generate --api-key "$GEMINI_API_KEY" --hero-style "$HERO_STYLE"
+          export PYTHONPATH=$PYTHONPATH:.
+          if [ "$REFRESH_ARCHITECTURE" = "true" ]; then
+            python scripts/cli.py generate --refresh-architecture --hero-style "$HERO_STYLE"
+          else
+            python scripts/cli.py generate --hero-style "$HERO_STYLE"
+          fi
           
       - name: Commit & Push
         run: |

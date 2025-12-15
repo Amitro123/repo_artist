@@ -58,6 +58,12 @@ class RepoArtistConfig:
         'go.mod', 'pom.xml', 'build.gradle'
     })
     
+    # Image Generation URLs (configurable to avoid hardcoding)
+    pollinations_url: str = "https://image.pollinations.ai/prompt/{prompt}"
+    pollinations_width: int = 1280
+    pollinations_height: int = 720
+    mermaid_ink_url: str = "https://mermaid.ink/img/{encoded}"
+    
     # Retry Configuration
     max_json_retries: int = 3
     
