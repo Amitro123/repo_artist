@@ -70,7 +70,7 @@ Repo-Artist is an automation tool that automatically generates a "Hero Image" fo
         - **Apply**: One-click commit to GitHub via REST API.
         - **Architecture JSON Tab**: View complete analyzed architecture data in formatted JSON.
 
-### 4. Local Trigger (`smart_push.py`)
+### 4. Local Trigger (`scripts/smart_push.py`)
 - Wraps `git push`.
 - Detects architecture changes (> 50 lines or > 3 files).
 - Options: Full Refresh vs Rewrite Only.

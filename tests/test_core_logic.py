@@ -247,27 +247,29 @@ class TestReadmeUpdate(unittest.TestCase):
         """Test updating empty README."""
         result = update_readme_content("", "assets/test.png")
         
-        self.assertIn("![Architecture](assets/test.png)", result)
+        # Code adds ./ prefix for GitHub compatibility
+        self.assertIn("![Architecture](./assets/test.png)", result)
         self.assertIn("# Project", result)
     
     def test_update_readme_content_already_exists(self):
-        """Test that existing image reference is not duplicated."""
+        """Test that existing image reference is updated."""
         original = "# Test\n\n![Architecture](assets/test.png)\n\nContent"
         result = update_readme_content(original, "assets/test.png")
         
-        # Should return unchanged
-        self.assertEqual(result, original)
+        # Code normalizes to ./ prefix
+        self.assertIn("![Architecture](./assets/test.png)", result)
     
     def test_update_readme_content_insert_after_title(self):
         """Test inserting image after title."""
         original = "# My Project\n\nSome description here."
         result = update_readme_content(original, "assets/test.png")
         
-        self.assertIn("![Architecture](assets/test.png)", result)
+        # Code adds ./ prefix for GitHub compatibility
+        self.assertIn("![Architecture](./assets/test.png)", result)
         # Image should come after title
         lines = result.split('\n')
         title_idx = lines.index("# My Project")
-        image_line = "![Architecture](assets/test.png)"
+        image_line = "![Architecture](./assets/test.png)"
         image_idx = next(i for i, line in enumerate(lines) if image_line in line)
         self.assertGreater(image_idx, title_idx)
     
@@ -282,8 +284,9 @@ Description here."""
         
         result = update_readme_content(original, "assets/test.png")
         
-        self.assertIn("![Architecture](assets/test.png)", result)
-        # Should be after badges
+        # Code adds ./ prefix for GitHub compatibility
+        self.assertIn("![Architecture](./assets/test.png)", result)
+        # Should still contain badges
         self.assertIn("[![License", result)
     
     def test_update_readme_content_replace_existing(self):
@@ -291,8 +294,8 @@ Description here."""
         original = "# Test\n\n![Old Diagram](assets/architecture_diagram.png)\n\nContent"
         result = update_readme_content(original, "assets/architecture_diagram.png")
         
-        # Should update the existing reference
-        self.assertIn("![Architecture](assets/architecture_diagram.png)", result)
+        # Code adds ./ prefix and updates reference
+        self.assertIn("![Architecture](./assets/architecture_diagram.png)", result)
         self.assertNotIn("![Old Diagram]", result)
 
 

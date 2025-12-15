@@ -31,11 +31,13 @@ class TestRepoArtist(unittest.TestCase):
         }
         result = repo_artist.build_hero_prompt(arch)
         
-        self.assertIn("System overview:", result)
-        self.assertIn("Platforms:", result)
-        self.assertIn('Platform 1 labeled "Component A"', result)
-        self.assertIn('An arrow from "Component A" to "Component B"', result)
-        self.assertIn("Visual style: professional futuristic", result)
+        # Check for Nano Banana style format
+        self.assertIn("hyper-realistic, premium 3D", result)
+        self.assertIn("System: A test system for testing", result)
+        self.assertIn("'Component A'", result)
+        self.assertIn("'Component B'", result)
+        self.assertIn("data pipe flows from", result)
+        self.assertIn("ENSURE ALL TEXT LABELS ARE PERFECTLY LEGIBLE", result)
 
     def test_build_hero_prompt_with_style(self):
         """Test build_hero_prompt with custom style variation."""

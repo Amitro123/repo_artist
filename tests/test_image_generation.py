@@ -206,26 +206,15 @@ class TestMermaidGeneration(unittest.TestCase):
 
 class TestImageGenerationIntegration(unittest.TestCase):
     
-    @patch('repo_artist.core.requests.get')
-    def test_end_to_end_fallback_to_mermaid(self, mock_get):
+    @patch('repo_artist.core.generate_hero_image_imagen3')
+    @patch('repo_artist.core.generate_hero_image_pollinations')
+    @patch('repo_artist.core.generate_hero_image_mermaid')
+    def test_end_to_end_fallback_to_mermaid(self, mock_mermaid, mock_pollinations, mock_imagen3):
         """Test complete fallback chain ending with Mermaid."""
-        # Mock all requests to fail except the last one (Mermaid)
-        mock_fail_response = MagicMock()
-        mock_fail_response.status_code = 500
-        
-        mock_success_response = MagicMock()
-        mock_success_response.status_code = 200
-        mock_success_response.content = b"mermaid_diagram"
-        
-        # Return failures for Pollinations attempts, then success for Mermaid
-        def side_effect(*args, **kwargs):
-            # Check if this is a Mermaid request (contains mermaid.ink)
-            if 'mermaid.ink' in args[0]:
-                return mock_success_response
-            else:
-                return mock_fail_response
-        
-        mock_get.side_effect = side_effect
+        # Tier 1 and 2 fail, Tier 3 succeeds
+        mock_imagen3.return_value = None
+        mock_pollinations.return_value = None
+        mock_mermaid.return_value = b"mermaid_diagram"
         
         architecture = {
             "components": [{"id": "comp1", "label": "Component 1", "type": "backend"}],
@@ -237,8 +226,10 @@ class TestImageGenerationIntegration(unittest.TestCase):
         # Should eventually get Mermaid diagram
         self.assertIsNotNone(result)
         self.assertEqual(result, b"mermaid_diagram")
-        # Should have made multiple attempts
-        self.assertGreater(mock_get.call_count, 1)
+        # Should have tried all tiers
+        mock_imagen3.assert_called_once()
+        mock_pollinations.assert_called_once()
+        mock_mermaid.assert_called_once()
 
 
 if __name__ == '__main__':

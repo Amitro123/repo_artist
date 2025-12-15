@@ -32,6 +32,17 @@ function RepoArtistApp() {
     const [refinePrompt, setRefinePrompt] = useState('');
     const [refining, setRefining] = useState(false);
 
+    // Visual style selection
+    const [visualStyle, setVisualStyle] = useState('auto');
+    const STYLE_OPTIONS = [
+        { value: 'auto', label: 'Auto (AI Decides)' },
+        { value: 'minimalist', label: 'Minimalist Clean' },
+        { value: 'cyberpunk', label: 'Cyberpunk Neon' },
+        { value: 'corporate', label: 'Corporate Professional' },
+        { value: 'sketch', label: 'Hand-drawn Sketch' },
+        { value: 'glassmorphism', label: '3D Glassmorphism' }
+    ];
+
     // Persistent architecture JSON state
     const [forceReanalyze, setForceReanalyze] = useState(false);
 
@@ -100,7 +111,8 @@ function RepoArtistApp() {
             const payload = {
                 repo_url: repoUrl,
                 gemini_api_key: useEnvKey ? "" : apiKey,
-                force_reanalyze: forceReanalyze  // NEW
+                force_reanalyze: forceReanalyze,
+                style: visualStyle
             };
 
             const res = await fetch('/api/preview', {
@@ -169,7 +181,8 @@ function RepoArtistApp() {
                 repo_url: repoUrl,
                 edit_prompt: refinePrompt,
                 gemini_api_key: useEnvKey ? "" : apiKey,
-                force_reanalyze: forceReanalyze  // NEW
+                force_reanalyze: forceReanalyze,
+                style: visualStyle
             };
 
             const res = await fetch('/api/refine-image', {
@@ -253,6 +266,31 @@ function RepoArtistApp() {
                             </button>
                         )}
                     </div>
+                </div>
+
+                {/* Visual Style Dropdown */}
+                <div>
+                    <label>Visual Style</label>
+                    <select
+                        value={visualStyle}
+                        onChange={(e) => setVisualStyle(e.target.value)}
+                        style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            background: 'rgba(0,0,0,0.3)',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: '8px',
+                            color: 'white',
+                            fontSize: '0.9rem',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        {STYLE_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value} style={{ background: '#1a1a2e', color: 'white' }}>
+                                {opt.label}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 {/* Force Re-analyze Checkbox */}

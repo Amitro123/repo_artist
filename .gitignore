@@ -8,7 +8,13 @@ __pycache__/
 venv/
 env/
 .venv/
+
+# Secrets
+gcp_key.json
+gcp_key.json.BAK
+gcp_key.json.remote
 .env
+
 
 # System
 .DS_Store

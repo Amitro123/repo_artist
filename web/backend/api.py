@@ -32,11 +32,22 @@ from web.backend.github_utils import create_or_update_file, get_default_branch
 
 router = APIRouter()
 
+# Visual style options for the dropdown
+VISUAL_STYLES = {
+    "auto": None,  # Let AI decide
+    "minimalist": "Clean minimalist design with simple shapes, white space, and subtle colors",
+    "cyberpunk": "Cyberpunk neon aesthetic with glowing edges, dark background, and vibrant purple/cyan colors",
+    "corporate": "Corporate professional style with clean lines, blues and grays, suitable for business presentations",
+    "sketch": "Hand-drawn sketch style with rough lines, organic shapes, and a notebook-paper feel",
+    "glassmorphism": "3D glassmorphism with frosted glass effects, floating elements, and soft gradients"
+}
+
 class PreviewRequest(BaseModel):
     repo_url: str
-    gemini_api_key: Optional[str] = None # Optional now
+    gemini_api_key: Optional[str] = None
     branch: Optional[str] = None
-    force_reanalyze: bool = False  # NEW: Ignore cached architecture JSON
+    force_reanalyze: bool = False
+    style: str = "auto"  # Visual style: auto, minimalist, cyberpunk, corporate, sketch, glassmorphism
 
 class ApplyRequest(BaseModel):
     repo_url: str
@@ -50,8 +61,10 @@ class RefineRequest(BaseModel):
     repo_url: str
     edit_prompt: str  # e.g., "Make the database red"
     gemini_api_key: Optional[str] = None
-    original_prompt: Optional[str] = None  # If available from cache
-    force_reanalyze: bool = False  # NEW: Ignore cached architecture JSON
+    original_prompt: Optional[str] = None
+    force_reanalyze: bool = False
+    style: str = "auto"  # Visual style: auto, minimalist, cyberpunk, corporate, sketch, glassmorphism
+
 
 @router.get("/config")
 def get_config():
@@ -104,8 +117,11 @@ async def preview_architecture(req: PreviewRequest):
         
         if not architecture:
              raise HTTPException(status_code=500, detail="Failed to analyze architecture")
-             
-        prompt = build_hero_prompt(architecture)
+        
+        # Get style description for prompt
+        style_desc = VISUAL_STYLES.get(req.style.lower(), None) if req.style else None
+        
+        prompt = build_hero_prompt(architecture, hero_style=style_desc)
         
         # Generate Image (with caching support)
         from repo_artist.config import RepoArtistConfig
@@ -118,7 +134,8 @@ async def preview_architecture(req: PreviewRequest):
             prompt, 
             architecture, 
             output_path=output_path, 
-            config=config
+            config=config,
+            hero_style=style_desc
         )
         image_b64 = None
         if image_content:
@@ -237,7 +254,8 @@ async def apply_changes(req: ApplyRequest, authorization: Optional[str] = Header
 async def refine_image(req: RefineRequest):
     """
     Refine an existing generated image using natural language.
-    Regenerates the image with an enhanced prompt.
+    Regenerates the image with an enhanced prompt using the SAME
+    multi-tier fallback (Imagen3 -> Pollinations -> Mermaid) as /preview.
     """
     print(f"[API] /refine-image endpoint called - edit: {req.edit_prompt}", flush=True)
     
@@ -266,12 +284,13 @@ async def refine_image(req: RefineRequest):
             context, 
             api_key, 
             model_name=DEFAULT_MODEL,
-            force_reanalyze=req.force_reanalyze,  # NEW
-            repo_path=temp_dir  # NEW: Enable persistent JSON caching
+            force_reanalyze=req.force_reanalyze,
+            repo_path=temp_dir
         )
         
-        # Build original hero prompt
-        original_prompt = build_hero_prompt(architecture)
+        # Build original hero prompt with style
+        style_desc = VISUAL_STYLES.get(req.style.lower(), None) if req.style else None
+        original_prompt = build_hero_prompt(architecture, hero_style=style_desc)
         
         # Enhance prompt with user's refinement
         enhanced_prompt = f"{original_prompt}\n\nAdditional style requirements: {req.edit_prompt}"
@@ -280,8 +299,21 @@ async def refine_image(req: RefineRequest):
         print(f"Original prompt length: {len(original_prompt)} chars")
         print(f"Enhanced prompt length: {len(enhanced_prompt)} chars")
         
-        # Generate new image with enhanced prompt
-        image_bytes = generate_hero_image_pollinations(enhanced_prompt)
+        # Use the full multi-tier generation (Imagen3 -> Pollinations -> Mermaid)
+        from repo_artist.config import RepoArtistConfig
+        config = RepoArtistConfig.from_env(repo_path=temp_dir)
+        config.force_reanalyze = True  # Force regeneration, don't use cached image
+        
+        output_path = config.get_output_image_path(temp_dir)
+        
+        image_bytes = generate_hero_image(
+            enhanced_prompt, 
+            architecture, 
+            output_path=output_path, 
+            config=config,
+            hero_style=style_desc
+        )
+
         
         if not image_bytes:
             raise HTTPException(status_code=500, detail="Failed to generate refined image")
@@ -308,3 +340,4 @@ async def refine_image(req: RefineRequest):
         
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+

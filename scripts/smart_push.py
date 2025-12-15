@@ -15,14 +15,19 @@ Example:
 
 import subprocess
 import sys
+import os
+import shlex
+
+# Configurable thresholds via environment variables
+FILE_THRESHOLD = int(os.getenv("SMART_PUSH_FILE_THRESHOLD", "3"))
+LINE_THRESHOLD = int(os.getenv("SMART_PUSH_LINE_THRESHOLD", "50"))
 
 
-def run_command(command, check=True):
-    """Runs a shell command and returns output."""
+def run_command(command: list, check=True):
+    """Runs a command (as list) and returns output."""
     try:
         result = subprocess.run(
             command, 
-            shell=True, 
             check=check, 
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE, 
@@ -31,7 +36,7 @@ def run_command(command, check=True):
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
         if check:
-            print(f"Error running command: {command}")
+            print(f"Error running command: {' '.join(command)}")
             print(e.stderr)
             sys.exit(1)
         return ""
@@ -40,7 +45,7 @@ def run_command(command, check=True):
 def get_git_changes():
     """Gets the diff stats from git."""
     try:
-        upstream = run_command("git rev-parse --abbrev-ref --symbolic-full-name @{u}", check=False)
+        upstream = run_command(["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], check=False)
         if not upstream:
             print("ℹ️ No upstream branch found. Assuming first push.")
             return 0, 0
@@ -48,8 +53,7 @@ def get_git_changes():
         print("ℹ️ No upstream branch found. Assuming first push or local testing.")
         return 0, 0
 
-    cmd = f"git diff --shortstat {upstream} HEAD"
-    output = run_command(cmd, check=False)
+    output = run_command(["git", "diff", "--shortstat", upstream, "HEAD"], check=False)
     
     if not output:
         return 0, 0
@@ -76,8 +80,8 @@ def main():
     files, lines = get_git_changes()
     print(f"   Detected: {files} files changed, {lines} lines changed.\n")
 
-    # Threshold for significant changes
-    if files > 3 or lines > 50:
+    # Threshold for significant changes (configurable via env)
+    if files > FILE_THRESHOLD or lines > LINE_THRESHOLD:
         print("=" * 50)
         print("📊 Significant changes detected!")
         print("=" * 50)
@@ -97,13 +101,13 @@ def main():
             if choice == '1':
                 # Full refresh: [GEN_ART] with refresh flags
                 print("\n🔄 Creating commit to trigger full architecture refresh...")
-                run_command('git commit --allow-empty -m "[GEN_ART] Refresh architecture and regenerate hero image"')
+                run_command(["git", "commit", "--allow-empty", "-m", "[GEN_ART] Refresh architecture and regenerate hero image"])
                 print("✅ Created [GEN_ART] commit for full refresh")
                 
             elif choice == '2':
                 # Reuse architecture, force image
                 print("\n🔄 Creating commit to regenerate image only...")
-                run_command('git commit --allow-empty -m "[GEN_ART] Regenerate hero image from cached architecture"')
+                run_command(["git", "commit", "--allow-empty", "-m", "[GEN_ART] Regenerate hero image from cached architecture"])
                 print("✅ Created [GEN_ART] commit for image regeneration")
                 
             else:
@@ -114,10 +118,10 @@ def main():
         print("ℹ️ Changes below threshold. No art generation needed.")
     
     # Execute the actual git push
-    args = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else ""
-    print(f"\n📤 Pushing to remote... (git push {args})")
+    push_args = sys.argv[1:] if len(sys.argv) > 1 else []
+    print(f"\n📤 Pushing to remote... (git push {' '.join(push_args)})")
     
-    ret = subprocess.call(f"git push {args}", shell=True)
+    ret = subprocess.call(["git", "push"] + push_args)
     
     if ret == 0:
         print("\n✅ Push complete!")

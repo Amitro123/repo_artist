@@ -1,0 +1,59 @@
+name: Repo-Artist Logic
+
+on:
+  push:
+    paths-ignore:
+      - 'assets/**'
+      - 'README.md'
+  workflow_dispatch:
+    inputs:
+      force_refresh:
+        description: 'Force new architecture analysis'
+        required: false
+        type: boolean
+        default: false
+      hero_style:
+        description: 'Style variation (e.g. "cyberpunk", "minimal")'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  generate-art:
+    if: "contains(github.event.head_commit.message, '[GEN_ART]') || github.event_name == 'workflow_dispatch'"
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install Dependencies
+        run: |
+          pip install requests google-generativeai python-dotenv
+          # Ensure repo_artist package is available
+          export PYTHONPATH=$PYTHONPATH:.
+          
+      - name: Generate Hero Image
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ARCH_MODEL_NAME: ${{ secrets.ARCH_MODEL_NAME || 'gemini-2.5-flash' }}
+          REFRESH_ARCHITECTURE: ${{ inputs.force_refresh }}
+          HERO_STYLE: ${{ inputs.hero_style }}
+        run: |
+          python scripts/repo_artist.py generate --api-key "$GEMINI_API_KEY" --hero-style "$HERO_STYLE"
+          
+      - name: Commit & Push
+        run: |
+          git config --global user.name "Repo-Artist Bot"
+          git config --global user.email "bot@repo-artist.com"
+          git add assets/ README.md
+          git commit -m "🤖 [Repo-Artist] Updated architecture hero image" || echo "No changes to commit"
+          git push

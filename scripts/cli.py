@@ -20,6 +20,7 @@ import argparse
 import shutil
 import subprocess
 import re
+import getpass
 from dotenv import load_dotenv
 
 from repo_artist.core import (
@@ -75,7 +76,7 @@ def ensure_api_key(args_key):
         print("You can get one for free at: https://aistudio.google.com/app/apikey\n")
         
         try:
-            api_key = input("Enter your GEMINI_API_KEY: ").strip()
+            api_key = getpass.getpass("Enter your GEMINI_API_KEY: ").strip()
             if api_key:
                 save = input("Save this key to .env for future use? [y/N] ").strip().lower()
                 if save == 'y':
@@ -172,7 +173,17 @@ def cmd_setup_ci(args):
     """Sets up the GitHub Actions workflow."""
     print("\n🤖 Setting up GitHub Actions CI...")
     
-    workflow_content = """name: Repo-Artist Logic
+    # Load template from file
+    template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates", "generate_art.yml")
+    
+    if os.path.exists(template_path):
+        with open(template_path, 'r', encoding='utf-8') as f:
+            workflow_content = f.read()
+        print(f"   Loaded template from {template_path}")
+    else:
+        # Fallback to inline template if file doesn't exist
+        print(f"   ⚠️ Template file not found at {template_path}, using inline fallback")
+        workflow_content = """name: Repo-Artist Logic
 
 on:
   push:
@@ -212,7 +223,6 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install requests google-generativeai python-dotenv
-          # Ensure repo_artist package is available
           export PYTHONPATH=$PYTHONPATH:.
           
       - name: Generate Hero Image

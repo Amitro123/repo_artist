@@ -19,6 +19,7 @@ import requests
 
 from .config import RepoArtistConfig
 
+
 # --- CONFIGURATION ---
 POLLINATIONS_URL = "https://image.pollinations.ai/prompt/{prompt}"
 MERMAID_INK_URL = "https://mermaid.ink/img/{encoded}"
@@ -345,6 +346,27 @@ Return the corrected JSON object with the exact structure specified earlier."""
     return None
 
 
+# --- NANO BANANA STYLE PROMPT TEMPLATE ---
+PROMPT_STYLE_HEADER = """A hyper-realistic, premium 3D technical architecture visualization in isometric view, in the style of high-end CGI. The scene is set on a reflective, futuristic dark circuit board platform floating in a data nebula, glowing with intense neon energy in cyan, blue, and purple.
+
+The scene features distinct, complex 3D structures with clear, floating leader-line text labels. Each component is a separate, detailed 3D object with realistic materials (glass, metal, holographic surfaces).
+
+Components in the scene:
+"""
+
+PROMPT_LEGIBILITY_SUFFIX = """
+
+IMPORTANT RENDERING REQUIREMENTS:
+- ENSURE ALL TEXT LABELS ARE PERFECTLY LEGIBLE with high contrast
+- Labels should be floating leader-line style, NOT embedded in textures
+- Use clean sans-serif typography (like Helvetica or Inter)
+- Maintain clear visual hierarchy between components
+- Professional technical illustration quality suitable for a README banner
+- Wide 16:9 horizontal layout
+- No random text, no spelling errors, no unreadable scribbles
+"""
+
+
 def build_hero_prompt(
     architecture: Dict[str, Any], 
     hero_style: Optional[str] = None,
@@ -352,6 +374,9 @@ def build_hero_prompt(
 ) -> Optional[str]:
     """
     Step 3: Builds the prompt for the image generation model.
+    
+    Uses the premium 'Nano Banana' style CGI template with dynamic
+    component and connection generation.
     
     Args:
         architecture: Architecture dictionary from analyze_architecture()
@@ -367,65 +392,80 @@ def build_hero_prompt(
     if config is None:
         config = RepoArtistConfig.from_env()
     
-    logger.info("Step 3: Building hero image prompt...")
+    logger.info("Step 3: Building hero image prompt (Nano Banana style)...")
     
     system_summary = architecture.get("system_summary", "A software system")
     components = architecture.get("components", [])[:config.max_components]
     connections = architecture.get("connections", [])[:config.max_connections]
     
-    # Visual descriptors for different component types
+    # Fallback visual descriptors for component types
     type_visuals = {
-        "frontend": "a floating glass interface screen with UI elements",
-        "backend": "a server rack module with data streams",
-        "api": "a server rack module with data streams",
-        "database": "a cylindrical data storage unit with holographic rings",
-        "worker": "a processing core sending signals outward",
-        "cli": "a terminal window and code icons",
-        "external_service": "an external service tile or cloud endpoint icon",
-        "ai_model": "a glowing neural network brain visualization",
-        "queue": "a floating data buffer conduit",
-        "cache": "a glowing crystal memory bank",
-        "storage": "a heavy metallic data vault",
-        "other": "a modular tech block"
+        "frontend": "a glowing glass block containing a web browser interface with UI elements",
+        "backend": "a metallic server rack module with pulsing data streams",
+        "api": "a hexagonal gateway structure with API endpoint symbols",
+        "database": "a cylindrical data storage unit with holographic data rings orbiting it",
+        "worker": "a spinning processing core with outward energy signals",
+        "cli": "a floating terminal window with command-line interface icons",
+        "external_service": "a cloud-shaped external service node with connection ports",
+        "ai_model": "a glowing neural network brain with interconnected nodes",
+        "queue": "a translucent data buffer conduit with queued items visible inside",
+        "cache": "a glowing crystal memory bank with instant-access indicators",
+        "storage": "a heavy metallic data vault with secure lock symbols",
+        "other": "a modular tech block with abstract circuit patterns"
     }
-
-    # Build component platform descriptions
-    platform_lines = []
+    
+    # Build dynamic component descriptions
+    component_lines = []
+    id_to_label = {}
+    
     for i, comp in enumerate(components, 1):
         label = comp.get("label", f"Component {i}")
+        comp_id = comp.get("id", f"comp_{i}")
         comp_type = comp.get("type", "other").lower()
-        role = comp.get("role", "Handles system functionality")
         
-        # Use specific visual descriptions if available
-        if "visual_3d_object" in comp and "visual_label" in comp:
-             platform_lines.append(f"Platform {i}: {comp['visual_3d_object']}. {comp['visual_label']}")
+        # Store for connection lookup
+        id_to_label[comp_id] = label
+        
+        # Use visual_description from Gemini if available, otherwise use fallback
+        if "visual_3d_object" in comp:
+            visual_desc = comp["visual_3d_object"]
+        elif "visual_description" in comp:
+            visual_desc = comp["visual_description"]
         else:
-            visual = type_visuals.get(comp_type, type_visuals["other"])
-            platform_lines.append(f'Platform {i} labeled "{label}" (type: {comp_type}) – shows {visual}, representing {role}. Label should be a floating holographic text above the object.')
+            visual_desc = type_visuals.get(comp_type, type_visuals["other"])
+        
+        component_lines.append(
+            f"{i}. {visual_desc}. A floating leader-line label points to it, reading '{label}'."
+        )
     
-    # Build connection arrow descriptions
-    id_to_label = {c["id"]: c["label"] for c in components}
-    arrow_lines = []
+    # Build dynamic connection/pipe descriptions
+    connection_lines = []
     for conn in connections:
-        from_label = id_to_label.get(conn["from"], conn["from"])
-        to_label = id_to_label.get(conn["to"], conn["to"])
+        from_id = conn.get("from", "")
+        to_id = conn.get("to", "")
+        from_label = id_to_label.get(from_id, from_id)
+        to_label = id_to_label.get(to_id, to_id)
         conn_label = conn.get("label", "data flow")
-        arrow_lines.append(f'An arrow from "{from_label}" to "{to_label}" labeled "{conn_label}".')
+        
+        connection_lines.append(
+            f"* A thick neon data pipe flows from '{from_label}' to '{to_label}' with visible light pulses, labeled '{conn_label}'."
+        )
     
-    prompt = f"""A high-end sci-fi isometric flow diagram of a {system_summary[:60]}..., with {len(components)} clearly labeled glowing 3D platforms connected by arrows.
+    # Assemble final prompt
+    prompt_parts = [
+        PROMPT_STYLE_HEADER.strip(),
+        f"\nSystem: {system_summary}\n",
+        "\n".join(component_lines),
+        "\nData Flow Connections:",
+        "\n".join(connection_lines) if connection_lines else "Components are interconnected with glowing data streams.",
+        PROMPT_LEGIBILITY_SUFFIX.strip()
+    ]
     
-    System overview: {system_summary}
+    prompt = "\n".join(prompt_parts)
     
-    Platforms (Cyberpunk HUD interface style, flat vector labels overlaying 3D objects):
-    {chr(10).join(platform_lines)}
-    
-    Data flow:
-    {chr(10).join(arrow_lines)}
-    
-    Visual style: professional futuristic dark UI, isometric 3D glass platforms, neon blue and magenta edges, large, crisp English labels on each platform, clear arrows with short labels, wide horizontal layout suitable for a README banner, no random text, no extra shapes, no unreadable scribbles. ensure text labels are described as 'floating UI elements', NOT textures on the object."""
-    
+    # Add optional style variation
     if hero_style:
-        prompt += f" {hero_style}"
+        prompt += f"\n\nAdditional style: {hero_style}"
         logger.info(f"Added style variation: {hero_style}")
     
     logger.info(f"Hero prompt built ({len(prompt)} chars)")
@@ -636,7 +676,8 @@ def generate_hero_image(
     prompt: str,
     architecture: Dict[str, Any],
     output_path: Optional[str] = None,
-    config: Optional[RepoArtistConfig] = None
+    config: Optional[RepoArtistConfig] = None,
+    hero_style: Optional[str] = None
 ) -> Optional[bytes]:
     """
     Generate hero image with multi-tier fallback strategy.
@@ -650,6 +691,7 @@ def generate_hero_image(
         architecture: Architecture dictionary (for Mermaid fallback)
         output_path: Optional path to save image
         config: Configuration object
+        hero_style: Optional style variation used
         
     Returns:
         Image bytes if successful, None otherwise
@@ -667,6 +709,8 @@ def generate_hero_image(
         except Exception as e:
             logger.warning(f"Failed to read cached image: {e}. Regenerating.")
 
+    result = None
+    
     # Try Tier 1: Imagen 3
     result = generate_hero_image_imagen3(prompt, output_path, config)
     if result:
@@ -679,7 +723,11 @@ def generate_hero_image(
     
     # Fallback to Tier 3: Mermaid
     logger.warning("All image generation tiers failed, falling back to Mermaid diagram")
-    return generate_hero_image_mermaid(architecture, output_path)
+    result = generate_hero_image_mermaid(architecture, output_path)
+    return result
+
+
+
 
 
 def update_readme_content(

@@ -7,8 +7,6 @@
 
 Repo-Artist analyzes your codebase using **Google Gemini** to understand your architecture, then generates a high-end, sci-fi isometric "Hero Image" for your project.
 
-![Architecture](assetsrchitecture_diagram.png)
-
 ## Features
 
 - **AI-Powered Analysis**: Uses Gemini to analyze your code structure and infer architecture components.
@@ -101,10 +99,27 @@ This command will:
 | `ARCH_MODEL_NAME` | No | `gemini-2.5-flash` | Gemini model to use for analysis |
 | `IMAGEN_PROJECT_ID` | No | - | Google Cloud project ID for Imagen 3 (Tier 1 image generation) |
 | `IMAGEN_LOCATION` | No | `us-central1` | Google Cloud location for Imagen 3 |
+
 | `REPO_ARTIST_MAX_DEPTH` | No | `3` | Maximum directory depth to scan |
 | `REPO_ARTIST_MAX_COMPONENTS` | No | `7` | Maximum components to include in prompt |
 | `REPO_ARTIST_MAX_CONNECTIONS` | No | `7` | Maximum connections to include in prompt |
 | `REPO_ARTIST_OUTPUT_DIR` | No | `assets` | Output directory for generated images |
+| `SMART_PUSH_FILE_THRESHOLD` | No | `3` | Files changed threshold for smart push |
+| `SMART_PUSH_LINE_THRESHOLD` | No | `50` | Lines changed threshold for smart push |
+
+### Visual Styles
+
+The Web UI includes a **Visual Style** dropdown to control the generated image aesthetic:
+
+| Style | Description |
+|-------|-------------|
+| Auto (AI Decides) | Let Gemini choose the best style |
+| Minimalist Clean | Simple shapes, white space, subtle colors |
+| Cyberpunk Neon | Glowing edges, dark background, purple/cyan |
+| Corporate Professional | Clean lines, blues and grays |
+| Hand-drawn Sketch | Rough lines, organic shapes, notebook feel |
+| 3D Glassmorphism | Frosted glass, floating elements, soft gradients |
+
 
 ### Caching
 
@@ -163,7 +178,7 @@ All tests pass successfully with 100% coverage of critical paths.
 Use the wrapper script to conditionally trigger generation before pushing:
 
 ```bash
-python smart_push.py origin main
+python scripts/smart_push.py origin main
 ```
 
 If significant changes are detected, it will offer options to refresh the art before pushing.
