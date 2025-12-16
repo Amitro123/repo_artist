@@ -1,0 +1,85 @@
+{
+  "system_summary": "This system provides a web application and a command-line interface to interact with Git repositories, using a core engine to process repository data and potentially generate visualizations or 'art', integrating with GitHub for repository access.",
+  "components": [
+    {
+      "id": "frontend",
+      "label": "Web Frontend",
+      "type": "frontend",
+      "role": "Provides the interactive graphical user interface for users to browse, configure, and interact with the system.",
+      "visual_3d_object": "A sleek, glowing rectangular screen displaying a dynamic user interface.",
+      "visual_label": "Floating clearly above it, a flat holographic text label reading 'WEB FRONTEND' in bold white sans-serif font."
+    },
+    {
+      "id": "backend_api",
+      "label": "Backend API",
+      "type": "backend",
+      "role": "Serves the web frontend, handles user authentication, manages requests, and orchestrates calls to the core logic and external services.",
+      "visual_3d_object": "A tall, powerful server rack with blinking indicator lights, symbolizing robust processing.",
+      "visual_label": "Floating clearly above it, a flat holographic text label reading 'BACKEND API' in bold white sans-serif font."
+    },
+    {
+      "id": "repo_artist_core",
+      "label": "Repo Artist Core",
+      "type": "backend",
+      "role": "Contains the core business logic responsible for analyzing repository data and generating 'art' or processed insights based on defined templates.",
+      "visual_3d_object": "A complex, intricate set of rotating gears and cogs, representing deep processing and generation.",
+      "visual_label": "Floating clearly above it, a flat holographic text label reading 'REPO ARTIST CORE' in bold white sans-serif font."
+    },
+    {
+      "id": "cli_tool",
+      "label": "CLI Tool",
+      "type": "cli",
+      "role": "Allows power users and developers to interact with the core 'Repo Artist' functionality directly from the command line for scripting or automation.",
+      "visual_3d_object": "A dark terminal window with glowing green command-line text, illustrating direct interaction.",
+      "visual_label": "Floating clearly above it, a flat holographic text label reading 'CLI TOOL' in bold white sans-serif font."
+    },
+    {
+      "id": "github_api",
+      "label": "GitHub API",
+      "type": "external_service",
+      "role": "Provides external access to GitHub repositories, user data, and authentication mechanisms, acting as the primary source for repository information.",
+      "visual_3d_object": "A stylized cloud icon with the GitHub Octocat logo subtly integrated, denoting an external cloud service.",
+      "visual_label": "Floating clearly above it, a flat holographic text label reading 'GITHUB API' in bold white sans-serif font."
+    },
+    {
+      "id": "storage",
+      "label": "Static/Preview Storage",
+      "type": "storage",
+      "role": "Stores static assets, such as generated art previews and other web resources, accessible by both the backend and frontend.",
+      "visual_3d_object": "A secure data vault or a stack of stylized data drives, representing persistent data storage.",
+      "visual_label": "Floating clearly above it, a flat holographic text label reading 'STATIC STORAGE' in bold white sans-serif font."
+    }
+  ],
+  "connections": [
+    {
+      "from": "frontend",
+      "to": "backend_api",
+      "label": "Sends user requests and receives application data via RESTful API calls"
+    },
+    {
+      "from": "backend_api",
+      "to": "repo_artist_core",
+      "label": "Invokes core logic to analyze repositories and generate art based on requests"
+    },
+    {
+      "from": "backend_api",
+      "to": "github_api",
+      "label": "Fetches repository data and performs authentication via GitHub's API"
+    },
+    {
+      "from": "backend_api",
+      "to": "storage",
+      "label": "Stores generated art previews and retrieves static assets"
+    },
+    {
+      "from": "frontend",
+      "to": "storage",
+      "label": "Directly fetches static assets and generated previews for display"
+    },
+    {
+      "from": "cli_tool",
+      "to": "repo_artist_core",
+      "label": "Directly utilizes the core logic for local repository analysis and art generation"
+    }
+  ]
+}
