@@ -9,12 +9,25 @@ venv/
 env/
 .venv/
 
-# Secrets
+# Secrets & API Keys - NEVER commit these!
+.env
+.env.local
+.env.*.local
+*.env
+
+# Google Cloud credentials
 gcp_key.json
 gcp_key.json.BAK
 gcp_key.json.remote
-.env
+*-key.json
+*_key.json
+*credentials*.json
+service-account*.json
 
+# Other secrets
+*.pem
+*.key
+*.secret
 
 # System
 .DS_Store
@@ -33,5 +46,7 @@ yarn-error.log
 web/frontend/dist/
 *.tsbuildinfo
 
-# GCP
-.gcp_key.json   
+# Logs & temp files
+*.log
+web/backend/requests.log
+web/static/previews/

@@ -17,14 +17,12 @@ from typing import Optional, Dict, Any, List, Tuple
 import google.generativeai as genai
 import requests
 
-from .config import RepoArtistConfig
-
-
-# --- CONFIGURATION ---
-# Default URLs (can be overridden via config)
-DEFAULT_POLLINATIONS_URL = "https://image.pollinations.ai/prompt/{prompt}"
-DEFAULT_MERMAID_INK_URL = "https://mermaid.ink/img/{encoded}"
-DEFAULT_MODEL = "gemini-2.5-flash"
+from .config import (
+    RepoArtistConfig,
+    DEFAULT_MODEL,
+    DEFAULT_POLLINATIONS_URL,
+    DEFAULT_MERMAID_INK_URL,
+)
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -722,19 +720,35 @@ def generate_hero_image(
             logger.warning(f"Failed to read cached image: {e}. Regenerating.")
 
     result = None
+    tier = config.image_tier if config else "auto"
     
-    # Try Tier 1: Imagen 3
-    result = generate_hero_image_imagen3(prompt, output_path, config)
-    if result:
-        return result
-    
-    # Try Tier 2: Pollinations
-    result = generate_hero_image_pollinations(prompt, output_path, config)
-    if result:
-        return result
+    # Tier selection based on config
+    if tier == "pollinations":
+        # Skip Imagen 3, go straight to Pollinations (faster)
+        logger.info("Using Pollinations.ai (configured via IMAGE_TIER)")
+        result = generate_hero_image_pollinations(prompt, output_path, config)
+        if result:
+            return result
+    elif tier == "imagen3":
+        # Only try Imagen 3
+        logger.info("Using Imagen 3 only (configured via IMAGE_TIER)")
+        result = generate_hero_image_imagen3(prompt, output_path, config)
+        if result:
+            return result
+    else:
+        # Auto mode: try all tiers in order
+        # Try Tier 1: Imagen 3
+        result = generate_hero_image_imagen3(prompt, output_path, config)
+        if result:
+            return result
+        
+        # Try Tier 2: Pollinations
+        result = generate_hero_image_pollinations(prompt, output_path, config)
+        if result:
+            return result
     
     # Fallback to Tier 3: Mermaid
-    logger.warning("All image generation tiers failed, falling back to Mermaid diagram")
+    logger.warning("Image generation failed, falling back to Mermaid diagram")
     result = generate_hero_image_mermaid(architecture, output_path, config)
     return result
 

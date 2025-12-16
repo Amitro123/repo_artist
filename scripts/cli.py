@@ -21,7 +21,15 @@ import shutil
 import subprocess
 import re
 import getpass
+from importlib import resources
 from dotenv import load_dotenv
+
+# Rich library for consistent, professional UX
+from rich.console import Console
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.prompt import Prompt, Confirm
+from rich.table import Table
 
 from repo_artist.core import (
     get_code_context,
@@ -30,12 +38,14 @@ from repo_artist.core import (
     generate_hero_image,
     generate_hero_image_mermaid,
     update_readme_content,
-    DEFAULT_MODEL
 )
-from repo_artist.config import RepoArtistConfig
+from repo_artist.config import RepoArtistConfig, DEFAULT_MODEL
 
 # Load environment variables
 load_dotenv()
+
+# Initialize Rich console
+console = Console()
 
 # --- CONFIGURATION ---
 OUTPUT_PATH = "assets/architecture_diagram.png"
@@ -57,38 +67,42 @@ def update_readme(image_path="assets/architecture_diagram.png", readme_path="REA
     if new_content != content:
         with open(readme_path, 'w', encoding='utf-8') as f:
             f.write(new_content)
-        print("✅ README.md updated")
+        console.print("[bold green]✅ README.md updated[/bold green]")
         return True
     else:
-        print("   README.md already up to date")
+        console.print("[dim]   README.md already up to date[/dim]")
         return True
 
 
 def ensure_api_key(args_key):
     """
     Ensures GEMINI_API_KEY is available.
+    Uses Rich for consistent UX with secure password input.
     """
     api_key = args_key or os.getenv("GEMINI_API_KEY")
     
     if not api_key:
-        print("\n🔑 GEMINI_API_KEY is missing!")
-        print("To generate an architecture diagram, we need a Google Gemini API Key.")
-        print("You can get one for free at: https://aistudio.google.com/app/apikey\n")
+        console.print(Panel(
+            "[bold yellow]🔑 GEMINI_API_KEY is missing![/bold yellow]\n\n"
+            "To generate an architecture diagram, we need a Google Gemini API Key.\n"
+            "Get one for free at: [link=https://aistudio.google.com/app/apikey]https://aistudio.google.com/app/apikey[/link]",
+            title="API Key Required",
+            border_style="yellow"
+        ))
         
         try:
-            api_key = getpass.getpass("Enter your GEMINI_API_KEY: ").strip()
+            api_key = Prompt.ask("[cyan]Enter your GEMINI_API_KEY[/cyan]", password=True).strip()
             if api_key:
-                save = input("Save this key to .env for future use? [y/N] ").strip().lower()
-                if save == 'y':
+                if Confirm.ask("Save this key to .env for future use?", default=False):
                     with open(".env", "a") as f:
                         f.write(f"\nGEMINI_API_KEY={api_key}\n")
-                    print("✅ Saved to .env")
+                    console.print("[bold green]✅ Saved to .env[/bold green]")
         except KeyboardInterrupt:
-            print("\n❌ Operation cancelled.")
+            console.print("\n[bold red]❌ Operation cancelled.[/bold red]")
             sys.exit(1)
             
     if not api_key:
-        print("❌ No API key provided. Cannot proceed with architecture analysis.")
+        console.print("[bold red]❌ No API key provided. Cannot proceed with architecture analysis.[/bold red]")
         sys.exit(1)
         
     return api_key
@@ -98,38 +112,49 @@ def cmd_generate(args):
     """Main execution entry point for 'generate' command."""
     root_dir = args.path
     
-    print("\n" + "=" * 60)
-    print("🚀 Repo-Artist: Generation Mode")
-    print(f"   Root: {os.path.abspath(root_dir)}")
-    print(f"   Mode: {args.mode}")
-    print("=" * 60 + "\n")
+    # Display header with Rich
+    info_table = Table(show_header=False, box=None, padding=(0, 2))
+    info_table.add_row("[bold]Root:[/bold]", f"[cyan]{os.path.abspath(root_dir)}[/cyan]")
+    info_table.add_row("[bold]Mode:[/bold]", f"[cyan]{args.mode}[/cyan]")
+    
+    console.print(Panel(
+        info_table,
+        title="[bold cyan]🚀 Repo-Artist: Generation Mode[/bold cyan]",
+        border_style="cyan"
+    ))
 
     # Step 0: Ensure API Key
     api_key = ensure_api_key(args.api_key)
 
     # Step 1: Harvest repository structure
-    structure = get_code_context(root_dir)
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console, transient=True) as progress:
+        progress.add_task(description="Harvesting project structure...", total=None)
+        structure = get_code_context(root_dir)
+    
     if not structure:
-        print("❌ No files found to analyze.")
+        console.print("[bold red]❌ No files found to analyze.[/bold red]")
         sys.exit(1)
     
-    print()
+    console.print("[green]✅ Project structure harvested[/green]")
     
     # Step 2: Analyze architecture
     cache_path = os.path.join(root_dir, ARCHITECTURE_CACHE_PATH) if root_dir != "." else ARCHITECTURE_CACHE_PATH
-    architecture = analyze_architecture(
-        structure, 
-        api_key=api_key,
-        model_name=os.getenv("ARCH_MODEL_NAME", DEFAULT_MODEL),
-        force_refresh=args.refresh_architecture,
-        cache_path=cache_path
-    )
+    
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console, transient=True) as progress:
+        progress.add_task(description="Analyzing architecture with Gemini...", total=None)
+        architecture = analyze_architecture(
+            structure, 
+            api_key=api_key,
+            model_name=os.getenv("ARCH_MODEL_NAME", DEFAULT_MODEL),
+            force_refresh=args.refresh_architecture,
+            cache_path=cache_path
+        )
     
     if not architecture:
-        print("❌ Failed to analyze architecture.")
+        console.print("[bold red]❌ Failed to analyze architecture.[/bold red]")
         sys.exit(1)
     
-    print()
+    console.print(f"[green]✅ Architecture analyzed: {len(architecture.get('components', []))} components[/green]")
     
     # Step 3 & 4: Generate Image or Diagram
     success = False
@@ -138,21 +163,23 @@ def cmd_generate(args):
     config = RepoArtistConfig.from_env(root_dir)
     config.force_reanalyze = args.refresh_architecture
     
-    if args.mode == "image":
-        prompt = build_hero_prompt(architecture, hero_style=args.hero_style)
-        if prompt:
-            print()
-            content = generate_hero_image(prompt, architecture, output_full_path, config)
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console, transient=True) as progress:
+        progress.add_task(description="Generating hero image...", total=None)
+        
+        if args.mode == "image":
+            prompt = build_hero_prompt(architecture, hero_style=args.hero_style)
+            if prompt:
+                content = generate_hero_image(prompt, architecture, output_full_path, config)
+                success = content is not None
+        else:
+            content = generate_hero_image_mermaid(architecture, output_full_path)
             success = content is not None
-    else:
-        content = generate_hero_image_mermaid(architecture, output_full_path)
-        success = content is not None
     
     if not success:
-        print("❌ Failed to generate hero image.")
+        console.print("[bold red]❌ Failed to generate hero image.[/bold red]")
         sys.exit(1)
     
-    print()
+    console.print("[green]✅ Hero image generated[/green]")
     
     # Step 5: Update README
     if not args.skip_readme:
@@ -162,86 +189,53 @@ def cmd_generate(args):
         rel_image_path = rel_image_path.replace("\\", "/")
         update_readme(rel_image_path, readme_full_path)
     
-    print()
-    print("=" * 60)
-    print("✅ Repo-Artist Pipeline Complete!")
-    print(f"   Output: {output_full_path}")
-    print("=" * 60 + "\n")
+    # Success panel
+    console.print(Panel(
+        f"[bold green]✅ Pipeline Complete![/bold green]\n\nOutput: [cyan]{output_full_path}[/cyan]",
+        title="[bold green]Repo-Artist[/bold green]",
+        border_style="green"
+    ))
+
+
+def _get_template_path() -> str:
+    """
+    Get the path to the workflow template using importlib.resources for robust access.
+    Falls back to relative path if importlib.resources fails.
+    """
+    # Try importlib.resources first (works with installed packages)
+    try:
+        # Python 3.9+ style
+        if hasattr(resources, 'files'):
+            template_files = resources.files('templates')
+            template_path = template_files.joinpath('generate_art.yml')
+            if hasattr(template_path, 'read_text'):
+                # Return the path if it exists
+                return str(template_path)
+    except (ModuleNotFoundError, TypeError, AttributeError):
+        pass
+    
+    # Fallback to relative path (works when running from source)
+    return os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates", "generate_art.yml")
 
 
 def cmd_setup_ci(args):
-    """Sets up the GitHub Actions workflow."""
-    print("\n🤖 Setting up GitHub Actions CI...")
+    """Sets up the GitHub Actions workflow with Rich UI."""
+    console.print(Panel(
+        "[bold cyan]🤖 Setting up GitHub Actions CI...[/bold cyan]",
+        border_style="cyan"
+    ))
     
-    # Load template from file
-    template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates", "generate_art.yml")
+    # Load template from file using robust path resolution
+    template_path = _get_template_path()
     
-    if os.path.exists(template_path):
-        with open(template_path, 'r', encoding='utf-8') as f:
-            workflow_content = f.read()
-        print(f"   Loaded template from {template_path}")
-    else:
-        # Fallback to inline template if file doesn't exist
-        print(f"   ⚠️ Template file not found at {template_path}, using inline fallback")
-        workflow_content = """name: Repo-Artist Logic
-
-on:
-  push:
-    paths-ignore:
-      - 'assets/**'
-      - 'README.md'
-  workflow_dispatch:
-    inputs:
-      force_refresh:
-        description: 'Force new architecture analysis'
-        required: false
-        type: boolean
-        default: false
-      hero_style:
-        description: 'Style variation (e.g. "cyberpunk", "minimal")'
-        required: false
-        type: string
-
-permissions:
-  contents: write
-
-jobs:
-  generate-art:
-    if: "contains(github.event.head_commit.message, '[GEN_ART]') || github.event_name == 'workflow_dispatch'"
-    runs-on: ubuntu-latest
+    if not os.path.exists(template_path):
+        console.print(f"[bold red]❌ Template file not found at {template_path}[/bold red]")
+        console.print("[dim]   Please ensure the templates directory exists with generate_art.yml[/dim]")
+        sys.exit(1)
     
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          
-      - name: Install Dependencies
-        run: |
-          pip install requests google-generativeai python-dotenv
-          export PYTHONPATH=$PYTHONPATH:.
-          
-      - name: Generate Hero Image
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          ARCH_MODEL_NAME: ${{ secrets.ARCH_MODEL_NAME || 'gemini-2.5-flash' }}
-          REFRESH_ARCHITECTURE: ${{ inputs.force_refresh }}
-          HERO_STYLE: ${{ inputs.hero_style }}
-        run: |
-          python scripts/repo_artist.py generate --api-key "$GEMINI_API_KEY" --hero-style "$HERO_STYLE"
-          
-      - name: Commit & Push
-        run: |
-          git config --global user.name "Repo-Artist Bot"
-          git config --global user.email "bot@repo-artist.com"
-          git add assets/ README.md
-          git commit -m "🤖 [Repo-Artist] Updated architecture hero image" || echo "No changes to commit"
-          git push
-"""
+    with open(template_path, 'r', encoding='utf-8') as f:
+        workflow_content = f.read()
+    console.print(f"[dim]   Loaded template from {template_path}[/dim]")
     
     target_dir = os.path.join(".github", "workflows")
     target_file = os.path.join(target_dir, "generate_art.yml")
@@ -250,33 +244,37 @@ jobs:
     with open(target_file, "w", encoding="utf-8") as f:
         f.write(workflow_content)
         
-    print(f"✅ Created workflow file: {target_file}")
+    console.print(f"[bold green]✅ Created workflow file: {target_file}[/bold green]")
     
     # Check for gh CLI
     if shutil.which("gh"):
-        print("\n👀 GitHub CLI (gh) detected.")
-        choice = input("Do you want to upload GEMINI_API_KEY to GitHub Secrets now? [y/N] ").strip().lower()
-        if choice == 'y':
+        console.print("\n[bold]👀 GitHub CLI (gh) detected.[/bold]")
+        if Confirm.ask("Do you want to upload GEMINI_API_KEY to GitHub Secrets now?", default=False):
             api_key = os.getenv("GEMINI_API_KEY")
             if not api_key:
-                api_key = input("Enter GEMINI_API_KEY: ").strip()
+                api_key = Prompt.ask("[cyan]Enter GEMINI_API_KEY[/cyan]", password=True).strip()
             
             if api_key:
-                print("⏳ Uploading secret...")
-                try:
-                    subprocess.run(
-                        ["gh", "secret", "set", "GEMINI_API_KEY", "--body", api_key],
-                        check=True
-                    )
-                    print("✅ Secret GEMINI_API_KEY set successfully!")
-                except subprocess.CalledProcessError:
-                    print("❌ Failed to set secret via gh CLI. Please set it manually in GitHub Settings.")
+                with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console, transient=True) as progress:
+                    progress.add_task(description="Uploading secret...", total=None)
+                    try:
+                        subprocess.run(
+                            ["gh", "secret", "set", "GEMINI_API_KEY", "--body", api_key],
+                            check=True,
+                            capture_output=True
+                        )
+                        console.print("[bold green]✅ Secret GEMINI_API_KEY set successfully![/bold green]")
+                    except subprocess.CalledProcessError:
+                        console.print("[bold red]❌ Failed to set secret via gh CLI. Please set it manually in GitHub Settings.[/bold red]")
             else:
-                print("⚠️ No key provided, skipping secret upload.")
+                console.print("[yellow]⚠️ No key provided, skipping secret upload.[/yellow]")
     else:
-        print("\nℹ️ To enable CI, go to your Repo Settings -> Secrets and add GEMINI_API_KEY.")
+        console.print("\n[dim]ℹ️ To enable CI, go to your Repo Settings -> Secrets and add GEMINI_API_KEY.[/dim]")
     
-    print("\n✅ Setup complete! Push your code to enable the workflow.")
+    console.print(Panel(
+        "[bold green]✅ Setup complete![/bold green]\n\nPush your code to enable the workflow.",
+        border_style="green"
+    ))
 
 
 def main():

@@ -25,6 +25,8 @@ Repo-Artist analyzes your codebase using **Google Gemini** to understand your ar
     pip install -r requirements.txt
     ```
 
+> **New to Repo-Artist?** Check out the **[Complete Setup Guide](docs/SETUP_GUIDE.md)** for step-by-step instructions on configuring API keys, GitHub OAuth, and Google Cloud for premium image generation.
+
 ## Web App & Setup
 
 The easiest way to get started is the **Setup Wizard**, which configuring your keys and launches the Web UI.

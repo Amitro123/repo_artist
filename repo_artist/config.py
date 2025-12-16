@@ -17,16 +17,30 @@ from dataclasses import dataclass, field
 logger = logging.getLogger(__name__)
 
 
+# --- DEFAULT CONSTANTS ---
+# These are centralized here to avoid hardcoding throughout the codebase
+DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_POLLINATIONS_URL = "https://image.pollinations.ai/prompt/{prompt}"
+DEFAULT_MERMAID_INK_URL = "https://mermaid.ink/img/{encoded}"
+DEFAULT_POLLINATIONS_WIDTH = 1280
+DEFAULT_POLLINATIONS_HEIGHT = 720
+
+# Image generation tier preference
+# Options: "imagen3", "pollinations", "auto" (try all tiers)
+DEFAULT_IMAGE_TIER = "auto"
+
+
 @dataclass
 class RepoArtistConfig:
     """Configuration for Repo-Artist with all customizable options."""
     
     # API Configuration
     gemini_api_key: Optional[str] = None
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = DEFAULT_MODEL
     imagen_project_id: Optional[str] = None
     imagen_location: str = "us-central1"
     force_reanalyze: bool = False  # Added for caching control
+    image_tier: str = DEFAULT_IMAGE_TIER  # "imagen3", "pollinations", or "auto"
     
     # Analysis Configuration
     max_depth: int = 3
@@ -85,6 +99,7 @@ class RepoArtistConfig:
         config.gemini_model = os.getenv("ARCH_MODEL_NAME", config.gemini_model)
         config.imagen_project_id = os.getenv("IMAGEN_PROJECT_ID")
         config.imagen_location = os.getenv("IMAGEN_LOCATION", config.imagen_location)
+        config.image_tier = os.getenv("IMAGE_TIER", config.image_tier).lower()
         
         # Load numeric configurations
         if max_depth := os.getenv("REPO_ARTIST_MAX_DEPTH"):
